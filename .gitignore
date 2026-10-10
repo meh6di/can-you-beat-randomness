@@ -1,5 +1,6 @@
 *.csv
 data/
+data_raw/
 __pycache__/
 .idea/
 .venv/
