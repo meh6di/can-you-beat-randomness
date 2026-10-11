@@ -12,9 +12,13 @@ LEAGUES = {
 
 # Football-Data URL codes mapped to readable names
 SEASONS = {
+    "1920": "2019-2020",   # extra training data
+    # "2021": "2020-2021",   # COVID season (mostly no crowds): left out on purpose
     "2122": "2021-2022",
     "2223": "2022-2023",
-    "2324": "2023-2024"
+    "2324": "2023-2024",
+    "2425": "2024-2025",   # fresh holdout
+    "2526": "2025-2026"    # fresh holdout
 }
 
 OUTPUT_DIR = "data_raw"

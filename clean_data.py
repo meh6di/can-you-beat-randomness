@@ -15,7 +15,10 @@ KEEP_COLUMNS = [
     "HF", "AF",                     # Fouls
     "HY", "AY", "HR", "AR",         # Cards
     "AvgH", "AvgD", "AvgA",         # Average Market Odds
-    "PSH", "PSD", "PSA"             # Pinnacle Benchmark Odds
+    "PSH", "PSD", "PSA",            # Pinnacle odds (pre-closing snapshot)
+    "PSCH", "PSCD", "PSCA",         # Pinnacle CLOSING odds   (needed for CLV)
+    "AvgCH", "AvgCD", "AvgCA",      # Market-average CLOSING odds
+    "MaxH", "MaxD", "MaxA"          # Best available odds (line-shopping)
 ]
 def clean_datasets():
     os.makedirs(CLEAN_DIR, exist_ok=True)

@@ -1,0 +1,11 @@
+A,B,diff_units,ci_lo,ci_hi,p_two_sided
+Logistic regression,XGBoost (raw),21.019999999999996,-92.5805,133.91124999999997,0.7028
+Logistic regression,XGBoost (Platt-calibrated),130.17000000000002,19.809499999999993,240.00124999999997,0.0232
+Logistic regression,Favorite (all matches),23.65,-115.35575,165.64574999999996,0.727
+Logistic regression,Random (expected),172.56,73.12608333333334,272.1405,0.0004
+XGBoost (raw),XGBoost (Platt-calibrated),109.15,24.94824999999999,191.53324999999995,0.0122
+XGBoost (raw),Favorite (all matches),2.6300000000000026,-148.4215,152.91424999999992,0.9666
+XGBoost (raw),Random (expected),151.54000000000002,39.82300000000001,264.54374999999993,0.0066
+XGBoost (Platt-calibrated),Favorite (all matches),-106.52,-247.62024999999997,34.585249999999945,0.139
+XGBoost (Platt-calibrated),Random (expected),42.39000000000002,-60.31225,144.93058333333335,0.4052
+Favorite (all matches),Random (expected),148.91,-0.9625833333333137,295.73375,0.0518
