@@ -1,53 +1,64 @@
-import os
+"""Keep the needed columns, validate, and write data_clean/*.csv."""
 import glob
+import os
+
+import numpy as np
 import pandas as pd
 
-RAW_DIR = "data_raw"
-CLEAN_DIR = "data_clean"
-
-# Core columns required for features, targets, and market benchmarking
+import config as C
 
 KEEP_COLUMNS = [
-    "Div", "Date", "HomeTeam", "AwayTeam",
-    "FTHG", "FTAG", "FTR",
-    "HS", "AS", "HST", "AST",       # Shots
-    "HC", "AC",                     # Corners
-    "HF", "AF",                     # Fouls
-    "HY", "AY", "HR", "AR",         # Cards
-    "AvgH", "AvgD", "AvgA",         # Average Market Odds
-    "PSH", "PSD", "PSA",            # Pinnacle odds (pre-closing snapshot)
-    "PSCH", "PSCD", "PSCA",         # Pinnacle CLOSING odds   (needed for CLV)
-    "AvgCH", "AvgCD", "AvgCA",      # Market-average CLOSING odds
-    "MaxH", "MaxD", "MaxA"          # Best available odds (line-shopping)
+    "Div", "Date", "HomeTeam", "AwayTeam", "FTHG", "FTAG", "FTR",
+    "HS", "AS", "HST", "AST", "HC", "AC", "HF", "AF", "HY", "AY", "HR", "AR",
+    "AvgH", "AvgD", "AvgA",          # market-average odds (pre-closing snapshot)
+    "PSH", "PSD", "PSA",             # Pinnacle (pre-closing)
+    "PSCH", "PSCD", "PSCA",          # Pinnacle CLOSING odds  (CLV)
+    "AvgCH", "AvgCD", "AvgCA",       # market-average closing odds
+    "MaxH", "MaxD", "MaxA",          # best available odds
 ]
+ODDS_COLS = [c for c in KEEP_COLUMNS if c[:2] in ("Av", "PS", "Ma")]
+
+
+def read_csv_robust(path):
+    for enc in ("utf-8", "latin-1"):
+        try:
+            return pd.read_csv(path, encoding=enc, on_bad_lines="skip")
+        except UnicodeDecodeError:
+            continue
+    raise ValueError(f"Cannot decode {path}")
+
+
+def clean_one(df):
+    cols = [c for c in KEEP_COLUMNS if c in df.columns]
+    d = df[cols].copy()
+    d = d.dropna(how="all")
+    d["Date"] = pd.to_datetime(d["Date"], dayfirst=True, format="mixed", errors="coerce")
+    d = d.dropna(subset=["Date", "HomeTeam", "AwayTeam", "FTR", "AvgH", "AvgD", "AvgA"])
+    n0 = len(d)
+    d = d[d["FTR"].isin(["H", "D", "A"])]
+    for c in ODDS_COLS:                      # decimal odds must be > 1, else treat as missing
+        if c in d:
+            d.loc[d[c] <= 1.0, c] = np.nan
+    d = d.dropna(subset=["AvgH", "AvgD", "AvgA"])
+    d = d.drop_duplicates(subset=["Date", "HomeTeam", "AwayTeam"])
+    return d.sort_values("Date", kind="stable").reset_index(drop=True), n0 - len(d)
+
+
 def clean_datasets():
-    os.makedirs(CLEAN_DIR, exist_ok=True)
-    raw_files = glob.glob(os.path.join(RAW_DIR, "*.csv"))
-
-    if not raw_files:
-        print(f"No CSV files found in '{RAW_DIR}'. Run your fetch script first.")
+    os.makedirs(C.CLEAN_DIR, exist_ok=True)
+    files = sorted(glob.glob(os.path.join(C.RAW_DIR, "*.csv")))
+    if not files:
+        print(f"No CSV files in '{C.RAW_DIR}'. Run fetch_data.py first.")
         return
+    for fp in files:
+        name = os.path.basename(fp)
+        d, dropped = clean_one(read_csv_robust(fp))
+        d.to_csv(os.path.join(C.CLEAN_DIR, name), index=False)
+        miss = {c: f"{d[c].isna().mean():.0%}" for c in ("PSCH", "MaxH") if c in d and d[c].isna().any()}
+        extra = f" | missing: {miss}" if miss else ""
+        print(f"{name}: {len(d)} matches ({dropped} invalid dropped){extra}")
+    print(f"\nCleaned files saved to '{C.CLEAN_DIR}'.")
 
-    for file_path in raw_files:
-        filename = os.path.basename(file_path)
-        df = pd.read_csv(file_path)
-
-        # Retain only columns that exist in the file
-        available_cols = [col for col in KEEP_COLUMNS if col in df.columns]
-        df_clean = df[available_cols].copy()
-
-        # Parse date and sort chronologically
-        df_clean["Date"] = pd.to_datetime(df_clean["Date"], dayfirst=True)
-        df_clean = df_clean.sort_values(by="Date").reset_index(drop=True)
-
-        # Drop rows where match results or basic odds are missing
-        df_clean = df_clean.dropna(subset=["FTR", "AvgH", "AvgD", "AvgA"])
-
-        out_path = os.path.join(CLEAN_DIR, filename)
-        df_clean.to_csv(out_path, index=False)
-        print(f"Cleaned {filename}: {df.shape[1]} cols -> {df_clean.shape[1]} cols ({len(df_clean)} rows)")
-
-    print(f"\nAll files cleaned and saved to '{CLEAN_DIR}'.")
 
 if __name__ == "__main__":
     clean_datasets()

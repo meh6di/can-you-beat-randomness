@@ -1,0 +1,18 @@
+\begin{table}[H]\centering\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrr}
+\toprule
+source & ece & ece\_noise\_floor & p\_vs\_perfect & ece\_H & ece\_D & ece\_A \\
+\midrule
+Market (Avg, de-vigged) & 0.021 & 0.020 & 0.405 & 0.044 & 0.023 & 0.032 \\
+Pinnacle (de-vigged) & 0.026 & 0.020 & 0.126 & 0.043 & 0.031 & 0.034 \\
+Pinnacle close (de-vigged) & 0.022 & 0.020 & 0.322 & 0.049 & 0.045 & 0.046 \\
+Logistic regression (scaled, tuned) & 0.012 & 0.021 & 0.953 & 0.031 & 0.049 & 0.037 \\
+Market x strength-model blend & 0.021 & 0.020 & 0.412 & 0.044 & 0.023 & 0.032 \\
+XGBoost (raw) & 0.023 & 0.021 & 0.302 & 0.035 & 0.036 & 0.031 \\
+XGBoost (calibrated) & 0.023 & 0.020 & 0.336 & 0.034 & 0.036 & 0.042 \\
+Climatology (class freq.) & 0.023 & 0.022 & 0.445 & 0.065 & 0.059 & 0.038 \\
+\bottomrule
+\end{tabular}}
+\caption{Calibration error (ECE) against its sampling-noise floor.}\label{tab:calibration}
+\end{table}

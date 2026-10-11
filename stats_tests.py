@@ -8,7 +8,7 @@
    model vs favorite, model vs random).
 4. Power analysis: smallest ROI this sample could detect, and bets needed.
 
-Usage:  python stats_tests.py [--refresh]
+Usage:  python stats_tests.py [--split holdout|dev|all]  (default: holdout)
 """
 import sys
 import numpy as np
@@ -19,7 +19,8 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 
 from common import (
-    MODELS, LABELS, RESULTS_DIR, SEED, get_predictions, pick_bets, mean_ci,
+    market_null,
+    MODELS, LABELS, RESULTS_DIR, SEED, get_predictions, split_from_argv, pick_bets, mean_ci,
     bootstrap_means, full_profit_vector, favorite_profit_vector,
     random_expected_profit_vector, fmt_pct,
 )
@@ -31,31 +32,13 @@ N_SIM = 20_000
 rng = np.random.default_rng(SEED)
 
 
-# ------------------------------------------------------------ market-simulation null
-def market_null(bets, n_sim=N_SIM):
-    """ROI distribution of these exact bets if outcomes ~ de-vigged market probs.
-
-    Each bet wins with probability fair_p; profit = win * odds - 1.
-    Bets are on different matches (one per match), so they are independent.
-    """
-    p = bets["fair_p"].to_numpy()
-    odds = bets["odds"].to_numpy()
-    n = len(p)
-    rois = np.empty(n_sim)
-    chunk = 2000
-    for i in range(0, n_sim, chunk):
-        k = min(chunk, n_sim - i)
-        wins = rng.random((k, n)) < p
-        rois[i:i + k] = wins @ odds / n - 1.0
-    return rois
-
-
 def summarize(bets):
     n = len(bets)
     if n == 0:
-        return dict(bets=0), np.array([])
+        return dict(bets=0, roi=np.nan, ci_lo=np.nan, ci_hi=np.nan, null_mean=np.nan, z_vs_null=np.nan,
+                    p_vs_null=np.nan, ci_excludes_0=False), np.array([])
     roi, lo, hi = mean_ci(bets["profit"], N_BOOT, rng=rng)
-    null = market_null(bets)
+    null = market_null(bets, N_SIM, rng)
     return dict(
         bets=n, roi=roi, ci_lo=lo, ci_hi=hi,
         null_mean=null.mean(), null_sd=null.std(),
@@ -78,7 +61,9 @@ def print_table(title, df, pct_cols):
 
 
 def main():
-    df = get_predictions(refresh="--refresh" in sys.argv)
+    split = split_from_argv("holdout")
+    print(f"Split: {split}")
+    df = get_predictions(split)
     n_matches = len(df)
     print(f"{n_matches} test matches across {df['league'].nunique()} leagues")
 
@@ -90,7 +75,7 @@ def main():
             res, null = summarize(bets)
             res.update(model=LABELS[m], threshold=thr)
             rows.append(res)
-            if thr == MAIN_THR:
+            if thr == MAIN_THR and res["bets"] > 0:
                 nulls[m] = (res["roi"], null)
     overall = pd.DataFrame(rows)[["model", "threshold", "bets", "roi", "ci_lo", "ci_hi",
                                   "null_mean", "z_vs_null", "p_vs_null", "ci_excludes_0"]]
@@ -144,6 +129,8 @@ def main():
     rows = []
     for m in MODELS:
         p = pick_bets(df, m, "edge", MAIN_THR)["profit"].to_numpy()
+        if len(p) < 2:
+            continue
         sd, n = p.std(ddof=1), len(p)
         row = dict(model=LABELS[m], bets=n, sd_per_bet=sd, se_roi=sd / np.sqrt(n),
                    min_detectable_roi=(z_a + z_b) * sd / np.sqrt(n))
@@ -161,8 +148,9 @@ def main():
     power.to_csv(f"{RESULTS_DIR}/stats_power.csv", index=False)
 
     # --------------------------------------------------------------------- figure
-    fig, axes = plt.subplots(1, len(MODELS), figsize=(5 * len(MODELS), 3.8), sharey=True)
-    for ax, m in zip(np.atleast_1d(axes), MODELS):
+    plot_models = [m for m in MODELS if m in nulls]
+    fig, axes = plt.subplots(1, len(plot_models), figsize=(5 * len(plot_models), 3.8), sharey=True)
+    for ax, m in zip(np.atleast_1d(axes), plot_models):
         roi, null = nulls[m]
         ax.hist(100 * null, bins=60, color="lightgray", edgecolor="white")
         ax.axvline(100 * roi, color="royalblue", lw=2.2, label=f"observed {100 * roi:.1f}%")

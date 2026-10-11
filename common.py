@@ -1,141 +1,55 @@
-"""Shared utilities for the evaluation scripts (stats_tests, prob_eval, clv_analysis).
-
-Reproduces the models and betting rule of the original project (per-league models
-trained on 2019-24, tested on 2024-26, 6% probability-edge rule, one bet per match),
-but trains everything once and caches the test-set predictions in
-results/predictions.csv so every analysis uses exactly the same numbers.
-"""
+"""Shared, dependency-light utilities used by every analysis script."""
+import glob
 import os
+import sys
+
 import numpy as np
 import pandas as pd
-from sklearn.calibration import CalibratedClassifierCV
-from sklearn.linear_model import LogisticRegression
-from xgboost import XGBClassifier
 
-FEATURES_DIR = "data_features"
-RESULTS_DIR = "results"
-# Chronological split: train on older seasons, test on the newest two (pooled).
-TRAIN_SEASONS = ["2019-2020", "2021-2022", "2022-2023", "2023-2024"]
-TEST_SEASONS = ["2024-2025", "2025-2026"]
-LEAGUES = ["premier_league", "la_liga", "serie_a", "bundesliga", "ligue_1"]
-SEED = 42
+import config as C
+from config import (DEVIG_METHOD, FEATURES_DIR, LEAGUES, RESULTS_DIR, SEED)  # re-exported
 
-FEATURE_COLUMNS = [
-    "home_roll_points_5", "away_roll_points_5",
-    "home_roll_gf_5", "away_roll_ga_5",
-    "home_roll_sot_for_5", "away_roll_sot_ag_5",
-    "home_roll_corners_for_5", "away_roll_corners_ag_5",
-    "home_roll_sot_acc_5", "away_roll_sot_acc_5",
-    "home_roll_conv_5", "away_roll_conv_5",
-    "diff_points_5", "diff_sot_5", "diff_corners_5", "diff_rest_days",
-    "market_prob_h", "market_prob_d", "market_prob_a",
-]
-
-# Outcome order used for every (n, 3) array in this code base.
 OUTCOMES = ["H", "D", "A"]
 OUTCOME_IDX = {"H": 0, "D": 1, "A": 2}
-MODELS = ["logreg", "xgb", "xgb_cal"]
+MODELS = ["lr", "blend", "xgb", "xgb_cal"]
 LABELS = {
-    "logreg": "Logistic regression",
+    "lr": "Logistic regression (scaled, tuned)",
+    "blend": "Market x strength-model blend",
     "xgb": "XGBoost (raw)",
-    "xgb_cal": "XGBoost (Platt-calibrated)",
+    "xgb_cal": "XGBoost (calibrated)",
     "clim": "Climatology (class freq.)",
     "market": "Market (Avg, de-vigged)",
     "pinnacle": "Pinnacle (de-vigged)",
     "pinnacle_close": "Pinnacle close (de-vigged)",
 }
 
-_XGB_LABEL = {"A": 0, "D": 1, "H": 2}
 
+# ------------------------------------------------------------------------ odds
+def devig(odds, method=None):
+    """Remove the bookmaker margin from an (n, 3) array of decimal odds.
 
-# --------------------------------------------------------------------------- data
-def load_league_data(league):
-    train = []
-    for s in TRAIN_SEASONS:
-        path = os.path.join(FEATURES_DIR, f"{league}_{s}.csv")
-        if os.path.exists(path):
-            train.append(pd.read_csv(path))
-    test = []
-    for s in TEST_SEASONS:
-        path = os.path.join(FEATURES_DIR, f"{league}_{s}.csv")
-        if os.path.exists(path):
-            test.append(pd.read_csv(path))
-    if not train or not test:
-        return None, None
-    return pd.concat(train, ignore_index=True), pd.concat(test, ignore_index=True)
-
-
-def _xgb():
-    return XGBClassifier(
-        n_estimators=75, max_depth=3, learning_rate=0.05, subsample=0.8,
-        colsample_bytree=0.8, random_state=SEED, eval_metric="mlogloss",
-    )
-
-
-def fit_predict(train_df, test_df):
-    """Return {model_name: (n, 3) probabilities in H, D, A order}."""
-    X_tr, X_te = train_df[FEATURE_COLUMNS], test_df[FEATURE_COLUMNS]
-    y = train_df["FTR"]
-    out = {}
-
-    lr = LogisticRegression(max_iter=1000, random_state=SEED).fit(X_tr, y)
-    classes = list(lr.classes_)
-    out["logreg"] = lr.predict_proba(X_te)[:, [classes.index(o) for o in OUTCOMES]]
-
-    y_num = y.map(_XGB_LABEL)  # A=0, D=1, H=2  ->  reorder columns to H, D, A
-    out["xgb"] = _xgb().fit(X_tr, y_num).predict_proba(X_te)[:, [2, 1, 0]]
-
-    cal = CalibratedClassifierCV(estimator=_xgb(), method="sigmoid", cv=3).fit(X_tr, y_num)
-    out["xgb_cal"] = cal.predict_proba(X_te)[:, [2, 1, 0]]
-
-    freq = y.value_counts(normalize=True)
-    out["clim"] = np.tile([freq.get(o, 0.0) for o in OUTCOMES], (len(test_df), 1))
-    return out
-
-
-def get_predictions(refresh=False):
-    """All test-season matches (5 leagues, sorted by date) with model probabilities.
-
-    Columns added: league, p_{model}_{H,D,A} for model in MODELS + ['clim'].
-    Cached in results/predictions.csv; pass refresh=True (or --refresh) to rebuild.
+    'proportional': p_k = (1/o_k) / sum(1/o)
+    'power'       : p_k = (1/o_k)^k with k>=1 chosen so that sum p = 1. Takes more margin
+                    from longshots than proportional, i.e. it partly corrects the
+                    favourite-longshot bias.
     """
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-    cache = os.path.join(RESULTS_DIR, "predictions.csv")
-    if os.path.exists(cache) and not refresh:
-        return pd.read_csv(cache, parse_dates=["Date"])
-
-    frames = []
-    for league in LEAGUES:
-        train_df, test_df = load_league_data(league)
-        if train_df is None:
-            print(f"Skipping {league}: missing files in {FEATURES_DIR}/")
-            continue
-        preds = fit_predict(train_df, test_df)
-        df = test_df.copy()
-        df["league"] = league
-        for model, arr in preds.items():
-            for k, o in enumerate(OUTCOMES):
-                df[f"p_{model}_{o}"] = arr[:, k]
-        frames.append(df)
-        print(f"  trained {league}: {len(train_df)} train / {len(test_df)} test matches")
-    if not frames:
-        raise SystemExit(f"No data found in {FEATURES_DIR}/. Run the data pipeline first.")
-    full = pd.concat(frames, ignore_index=True)
-    full["Date"] = pd.to_datetime(full["Date"])
-    full = full.sort_values("Date", kind="stable").reset_index(drop=True)
-    full.to_csv(cache, index=False)
-    return full
+    method = method or DEVIG_METHOD
+    inv = 1.0 / np.asarray(odds, float)
+    if method == "proportional":
+        return inv / inv.sum(axis=1, keepdims=True)
+    if method != "power":
+        raise ValueError(method)
+    lo, hi = np.ones(len(inv)), np.full(len(inv), 20.0)
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        too_big = (inv ** mid[:, None]).sum(axis=1) > 1.0
+        lo, hi = np.where(too_big, mid, lo), np.where(too_big, hi, mid)
+    p = inv ** ((lo + hi) / 2)[:, None]
+    return p / p.sum(axis=1, keepdims=True)
 
 
-# ----------------------------------------------------------------- array helpers
 def odds_array(df, prefix="Avg"):
     return df[[f"{prefix}H", f"{prefix}D", f"{prefix}A"]].to_numpy(float)
-
-
-def devig(odds):
-    """Proportional (multiplicative) de-vigging of an (n, 3) odds array."""
-    inv = 1.0 / odds
-    return inv / inv.sum(axis=1, keepdims=True)
 
 
 def model_probs(df, model):
@@ -146,59 +60,110 @@ def actual_index(df):
     return df["FTR"].map(OUTCOME_IDX).to_numpy()
 
 
-# --------------------------------------------------------------------- betting
-def pick_bets(df, model, rule="edge", threshold=0.06):
-    """One bet per match on the best outcome, if its score clears the threshold.
+# ------------------------------------------------------------------------ data
+def load_features():
+    """All leagues' engineered features (every season), chronological."""
+    frames = [pd.read_csv(p, parse_dates=["Date"])
+              for p in sorted(glob.glob(os.path.join(FEATURES_DIR, "*.csv")))]
+    if not frames:
+        raise SystemExit(f"No feature files in '{FEATURES_DIR}/'. Run engineer_features.py.")
+    return pd.concat(frames, ignore_index=True).sort_values("Date", kind="stable").reset_index(drop=True)
 
-    rule='edge': score = p_model - p_market_fair   (the original project's rule)
-    rule='ev'  : score = p_model * odds - 1        (expected value per unit staked)
-    Bets are placed at the market-average odds (AvgH/D/A), as in the original code.
-    Returns a DataFrame indexed like `df` with: league, Date, pick (0/1/2), odds,
-    fair_p (market fair prob. of the pick), won, profit.
+
+def split_from_argv(default="holdout"):
+    """Read `--split dev|holdout|all` from the command line."""
+    if "--split" in sys.argv:
+        return sys.argv[sys.argv.index("--split") + 1]
+    return default
+
+
+def get_predictions(split="all"):
+    """Walk-forward predictions (results/wf_predictions.csv), optionally one split."""
+    path = os.path.join(RESULTS_DIR, "wf_predictions.csv")
+    if not os.path.exists(path):
+        raise SystemExit("results/wf_predictions.csv not found. Run walkforward.py first.")
+    df = pd.read_csv(path, parse_dates=["Date"])
+    if split != "all":
+        df = df[df["split"] == split]
+    if df.empty:
+        raise SystemExit(f"No rows for split '{split}'.")
+    return df.sort_values("Date", kind="stable").reset_index(drop=True)
+
+
+# --------------------------------------------------------------------- betting
+def pick_bets(df, model, rule="edge", threshold=0.06, price="Avg"):
+    """One bet per match on the best outcome if its score clears the threshold.
+
+    rule 'edge': score = p_model - p_market_fair   (probability points)
+    rule 'ev'  : score = p_model * odds - 1        (expected value per unit; accounts for vig)
+    Stakes 1 unit at the `price` odds ('Avg', 'Max' = best available, 'PS' = Pinnacle).
+    Returns a frame indexed like df: league, Date, pick, odds, fair_p, p_model, won, profit.
     """
     p = model_probs(df, model)
-    odds = odds_array(df, "Avg")
+    odds = odds_array(df, price)
     fair = df[["market_prob_h", "market_prob_d", "market_prob_a"]].to_numpy(float)
     score = (p - fair) if rule == "edge" else (p * odds - 1.0)
+    score = np.nan_to_num(score, nan=-np.inf)
     pick = score.argmax(axis=1)
     rows = np.arange(len(df))
-    mask = (score[rows, pick] >= threshold) & (score[rows, pick] > 0)
-
-    bets = df.loc[mask, ["league", "Date"]].copy()
+    best = score[rows, pick]
+    mask = (best >= threshold) & (best > 0)
     pk = pick[mask]
+    bets = df.loc[mask, ["league", "Date"]].copy()
     bets["pick"] = pk
     bets["odds"] = odds[mask, pk]
     bets["fair_p"] = fair[mask, pk]
+    bets["p_model"] = p[mask, pk]
     bets["won"] = actual_index(df)[mask] == pk
     bets["profit"] = np.where(bets["won"], bets["odds"] - 1.0, -1.0)
     return bets
 
 
 def full_profit_vector(df, bets):
-    """Per-match profit for every match in df (0 where no bet was placed)."""
-    s = pd.Series(0.0, index=df.index)
-    s.loc[bets.index] = bets["profit"].to_numpy()
-    return s.to_numpy()
+    s = np.zeros(len(df))
+    s[df.index.get_indexer(bets.index)] = bets["profit"].to_numpy()
+    return s
 
 
-def favorite_profit_vector(df):
-    odds = odds_array(df, "Avg")
+def favorite_profit_vector(df, price="Avg"):
+    odds = odds_array(df, price)
     pick = odds.argmin(axis=1)
     rows = np.arange(len(df))
     return np.where(actual_index(df) == pick, odds[rows, pick] - 1.0, -1.0)
 
 
-def random_expected_profit_vector(df):
-    """Expected per-match profit of a uniformly random pick (no sampling noise)."""
-    odds = odds_array(df, "Avg")
+def random_expected_profit_vector(df, price="Avg"):
+    odds = odds_array(df, price)
     y = np.zeros_like(odds)
     y[np.arange(len(df)), actual_index(df)] = 1.0
     return (y * odds - 1.0).mean(axis=1)
 
 
-# ----------------------------------------------------------------- bootstrapping
-def bootstrap_means(x, n_boot=10000, rng=None, chunk=500):
-    """Bootstrap distribution of the mean of x (resampling observations)."""
+def clv_of_bets(df, bets, price="Avg"):
+    """CLV of each bet vs Pinnacle's de-vigged closing price, and 'pick skill'
+    (CLV minus the average CLV of all three outcomes of the same match)."""
+    close = devig(odds_array(df, "PSC"))
+    clv_all = odds_array(df, price) * close - 1.0
+    idx = df.index.get_indexer(bets.index)
+    pk = bets["pick"].to_numpy()
+    clv = clv_all[idx, pk]
+    return clv, clv - clv_all[idx].mean(axis=1)
+
+
+def market_null(bets, n_sim=20_000, rng=None, chunk=2000):
+    """ROI distribution of these exact bets if outcomes ~ de-vigged market probabilities."""
+    rng = rng or np.random.default_rng(SEED)
+    p, odds = bets["fair_p"].to_numpy(), bets["odds"].to_numpy()
+    n = len(p)
+    out = np.empty(n_sim)
+    for i in range(0, n_sim, chunk):
+        k = min(chunk, n_sim - i)
+        out[i:i + k] = (rng.random((k, n)) < p) @ odds / n - 1.0
+    return out
+
+
+# ---------------------------------------------------------------- bootstrapping
+def bootstrap_means(x, n_boot=10_000, rng=None, chunk=500):
     rng = rng or np.random.default_rng(SEED)
     x = np.asarray(x, float)
     n = len(x)
@@ -209,13 +174,11 @@ def bootstrap_means(x, n_boot=10000, rng=None, chunk=500):
     return out
 
 
-def mean_ci(x, n_boot=10000, alpha=0.05, rng=None):
-    """(mean, lo, hi) with a percentile bootstrap CI. NaNs if x is empty."""
+def mean_ci(x, n_boot=10_000, alpha=0.05, rng=None):
     x = np.asarray(x, float)
     if len(x) == 0:
         return np.nan, np.nan, np.nan
-    b = bootstrap_means(x, n_boot, rng)
-    lo, hi = np.quantile(b, [alpha / 2, 1 - alpha / 2])
+    lo, hi = np.quantile(bootstrap_means(x, n_boot, rng), [alpha / 2, 1 - alpha / 2])
     return x.mean(), lo, hi
 
 

@@ -1,0 +1,25 @@
+\begin{table}[H]\centering\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrrr}
+\toprule
+model & league & bets & roi & ci\_lo & ci\_hi & p\_vs\_null & ci\_excludes\_0 \\
+\midrule
+Logistic regression (scaled, tuned) & bundesliga & 34 & -16.71\% & -65.74\% & 37.59\% & 0.603 & False \\
+Logistic regression (scaled, tuned) & la\_liga & 18 & -12.56\% & -76.00\% & 57.72\% & 0.535 & False \\
+Logistic regression (scaled, tuned) & ligue\_1 & 19 & 32.37\% & -32.74\% & 99.63\% & 0.119 & False \\
+Logistic regression (scaled, tuned) & premier\_league & 16 & -48.19\% & -100.00\% & 14.75\% & 0.883 & False \\
+Logistic regression (scaled, tuned) & serie\_a & 52 & 19.12\% & -25.35\% & 68.00\% & 0.103 & False \\
+XGBoost (raw) & bundesliga & 32 & -27.06\% & -73.60\% & 26.56\% & 0.679 & False \\
+XGBoost (raw) & la\_liga & 44 & -60.41\% & -88.41\% & -26.55\% & 0.984 & True \\
+XGBoost (raw) & ligue\_1 & 33 & -22.88\% & -69.67\% & 31.73\% & 0.672 & False \\
+XGBoost (raw) & premier\_league & 31 & 15.68\% & -47.07\% & 85.55\% & 0.211 & False \\
+XGBoost (raw) & serie\_a & 38 & -7.24\% & -57.11\% & 49.66\% & 0.462 & False \\
+XGBoost (calibrated) & bundesliga & 36 & 0.78\% & -36.14\% & 39.14\% & 0.338 & False \\
+XGBoost (calibrated) & la\_liga & 54 & -16.26\% & -53.80\% & 26.04\% & 0.666 & False \\
+XGBoost (calibrated) & ligue\_1 & 37 & -31.35\% & -65.05\% & 4.86\% & 0.906 & False \\
+XGBoost (calibrated) & premier\_league & 37 & -2.70\% & -46.35\% & 45.32\% & 0.413 & False \\
+XGBoost (calibrated) & serie\_a & 62 & -4.52\% & -36.60\% & 31.08\% & 0.458 & False \\
+\bottomrule
+\end{tabular}}
+\caption{Per-league ROI: note how wide the intervals are.}\label{tab:stats_per_league}
+\end{table}

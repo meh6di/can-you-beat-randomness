@@ -1,21 +1,20 @@
-# Generated data (rebuilt by fetch_data.py -> clean_data.py -> engineer_features.py)
+# Generated data (rebuilt by run_all.py)
 data_raw/
 data_clean/
 data_features/
 
-# Cached model outputs (rebuilt with --refresh)
-results/predictions.csv
+# Big cached model outputs (rebuild with walkforward.py)
+results/wf_predictions.csv
 
 # Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-env/
 .ipynb_checkpoints/
 .pytest_cache/
 
-# LaTeX build artifacts (keep report.tex, ignore the rest)
+# LaTeX build artifacts
 *.aux
 *.log
 *.out

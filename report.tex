@@ -1,0 +1,138 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{enumitem}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black, citecolor=blue!50!black}
+\lstset{basicstyle=\ttfamily\small, breaklines=true, frame=single, backgroundcolor=\color{gray!8}}
+
+% Include a figure only if the file exists, so the report compiles without images.
+\newcommand{\safefigure}[3]{%
+  \begin{figure}[H]\centering
+  \IfFileExists{#1}{\includegraphics[width=#2\textwidth]{#1}}%
+  {\fbox{\parbox{0.8\textwidth}{\centering\vspace{2cm}Figure file \texttt{#1} not found.\vspace{2cm}}}}
+  \caption{#3}\end{figure}}
+
+% Include a generated table only if it exists (run `python make_report_tables.py` first).
+\newcommand{\safetable}[1]{\IfFileExists{results/tex/#1.tex}{\input{results/tex/#1.tex}}%
+  {\par\noindent\fbox{Table \texttt{#1} not generated yet.}\par}}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\title{\textbf{Can You Beat Randomness?}\\[4pt]
+\large Football Betting Markets: Walk-Forward Models, Statistical Power,\\ Closing-Line Value and Bankroll Risk}
+\author{Mohamed El Mehdi El Allaoui\\
+\small \'Ecole Centrale Casablanca\\
+\small \url{https://github.com/meh6di/can-you-beat-randomness}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We ask whether statistical models can extract a profit from the pricing of the five major European football leagues, and, more importantly, how much evidence a realistic sample can provide either way. Models (tuned logistic regression, a market--strength log-linear blend, raw and calibrated XGBoost) are retrained every month in a walk-forward design on Elo and exponentially weighted form features that carry over seasons. The betting rule and threshold are chosen on one development season by closing-line value (CLV) against Pinnacle and reported once on an untouched holdout season. Every ROI is accompanied by a bootstrap interval and by a p-value against an efficient-market null in which outcomes are redrawn from de-vigged market probabilities; a power analysis states the smallest edge the sample could detect. Probabilistic quality is assessed with log loss, Brier score and the ranked probability score, and calibration with ECE against its sampling-noise floor. A separate study of the market itself examines favourite--longshot bias, and bankroll risk is quantified by simulation under several staking schemes. \todo{one sentence with the headline finding after running the pipeline}. For educational purposes only; not betting advice.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+Betting advertising is ubiquitous around football. The question is whether algorithmic models can exploit inefficiencies in the odds, or whether the bookmaker's margin guarantees long-run losses. A tempting but weak way to answer it is to report one season's ROI. With a per-bet standard deviation of roughly 1.5--2 units, a season of a few hundred bets has a standard error of several percentage points of ROI, larger than any plausible edge. This report therefore centres on \emph{inference}: intervals, nulls, power, and a low-variance edge measure (CLV), and only then on profit.
+
+\paragraph{Disclaimer.} Solely for educational, academic and research purposes. Not financial or gambling advice.
+
+\section{Data}
+Data come from \url{football-data.co.uk} (\texttt{fetch\_data.py}): Premier League, La Liga, Serie A, Bundesliga and Ligue~1, seasons 2019--20 to 2025--26. The 2020--21 season (mostly played without crowds) is used only to build ratings and form, never to train or test. \texttt{clean\_data.py} validates downloads and rows (decimal odds must exceed 1, duplicates are dropped) and keeps results, goals, shots on target, corners, average, best and Pinnacle odds, and Pinnacle \emph{closing} odds.
+
+\section{Features and Leakage Control}
+Features are built per league across seasons (\texttt{engineer\_features.py}); the value at a match uses only strictly earlier days.
+\begin{itemize}[noitemsep]
+  \item \textbf{De-vigged market probabilities.} With overround $\Omega=\sum_k 1/o_k$, proportional de-vigging gives $p_k=(1/o_k)/\Omega$. We use the \emph{power} method, $p_k=(1/o_k)^{c}$ with $c\ge1$ such that $\sum_k p_k=1$, which removes proportionally more margin from longshots. The model sees the log-ratios $\log(p_H/p_A)$ and $\log\big(p_D/(p_H+p_A)\big)$, which avoids collinearity.
+  \item \textbf{Elo.} Home advantage, a goal-difference multiplier, regression towards the mean between seasons, and lower starting ratings for promoted teams.
+  \item \textbf{Exponentially weighted form for both teams:} points, goals for (attack) and against (defence), shots on target for/against, corners for/against, with half-life of five matches, shrunk to the league mean while a team has few games ($n/(n+3)$), plus games-played and rest days.
+\end{itemize}
+A unit test perturbs the result of one match and verifies that no feature at or before that match changes.
+
+\section{Methodology}
+\subsection{Walk-forward protocol}
+For every calendar month $M$ of the 2024--25 and 2025--26 seasons: training data are matches before $M-365$ days; the validation window is the 365 days before $M$ and tunes regularisation, the blend weight and the calibrator; month $M$ is the test set. Models are therefore refit as results arrive and no information after $M$ is used. 2024--25 is the \emph{development} season; 2025--26 is the \emph{holdout}.
+
+\subsection{Models}
+\begin{itemize}[noitemsep]
+  \item \textbf{Logistic regression:} standardised features, league dummies, $C$ tuned on validation.
+  \item \textbf{Blend:} $p\propto p_{\text{mkt}}^{1-w}\,p_{\text{strength}}^{w}$, where $p_{\text{strength}}$ comes from a model without market inputs and $w\in[0,1]$ is fitted on validation. $w\approx0$ means the model adds nothing beyond the market.
+  \item \textbf{XGBoost}, raw and recalibrated on the later validation window with a multinomial vector-scaling map.
+\end{itemize}
+
+\subsection{Betting rules}
+One unit is staked per match on the best outcome if its score clears a threshold: \emph{edge} ($\hat p-p_{\text{mkt}}$) or \emph{expected value} ($\hat p\cdot o-1$), at average, best-available or Pinnacle prices. Rule, threshold and price source are chosen on the development season (maximum mean CLV, at least 150 bets) and evaluated once on the holdout.
+
+\section{Statistical Framework}
+\paragraph{Bootstrap.} Bets are resampled with replacement to give percentile intervals for ROI.
+\paragraph{Efficient-market null.} Holding the placed bets fixed, outcomes are redrawn $20{,}000$ times from the de-vigged market probabilities. The resulting ROI distribution is centred near minus the margin, not zero; the p-value is the share of simulations at least as good as the observed ROI.
+\paragraph{Power.} With per-bet standard deviation $\sigma$ and $n$ bets, the smallest true ROI detected with 80\% power at 5\% (one-sided) is $(z_{0.95}+z_{0.80})\,\sigma/\sqrt n$, and a target edge $e$ needs $n=\big((z_{0.95}+z_{0.80})\sigma/e\big)^2$ bets.
+\paragraph{Closing-line value.} $\mathrm{CLV}=o_{\text{taken}}\,p^{\text{Pinnacle close}}-1$. It does not depend on who won, so its standard error is an order of magnitude smaller than ROI's. ``Pick skill'' subtracts the average CLV of all three outcomes of the same match, isolating whether the model chose the better side from the margin every blind bet pays.
+\paragraph{Probabilistic scores.} Log loss, multiclass Brier score and the ranked probability score (outcomes ordered H$<$D$<$A), with paired per-match differences against the market, and expected calibration error (equal-mass bins) compared with the ECE a perfectly calibrated forecaster would show by chance.
+
+\section{Results}
+\subsection{Do the models add information beyond the market?}
+\safetable{prob_scores}
+\safetable{calibration}
+\safefigure{results/reliability.png}{0.95}{Reliability diagrams (equal-mass bins, pooled over H/D/A).}
+\todo{interpret: delta vs market with CI; is any model's log loss better than the market's?}
+
+\subsection{Betting outcomes and their uncertainty}
+\safetable{stats_overall}
+\safetable{stats_per_league}
+\safetable{stats_paired}
+\safetable{stats_power}
+\safefigure{results/market_null.png}{0.95}{Observed ROI against the efficient-market null.}
+\todo{interpret: compare p-values with the multiple-testing note; state minimum detectable ROI}
+
+\subsection{Closing-line value}
+\safetable{clv_summary}
+\safefigure{results/clv_curves.png}{0.95}{Realised profit versus cumulative CLV.}
+\todo{interpret: pick-skill CI, share beating the raw closing odds, variance ratio ROI/CLV}
+
+\subsection{Strategy selected on development, evaluated on the holdout}
+\safetable{select_holdout}
+\todo{interpret: dev vs holdout CLV and the rank correlation (winner's curse)}
+
+\subsection{The market itself: favourite--longshot bias}
+\safetable{market_bias_buckets}
+\safetable{market_bias_strategies}
+\safefigure{results/market_bias.png}{0.95}{Observed versus implied probability and blind ROI by odds bucket.}
+\todo{interpret: slope of profit on log-odds (results/market\_bias\_slope.csv), favourite ROI stability by season}
+
+\subsection{Bankroll risk}
+\safetable{risk_drawdown}
+\safetable{risk_ruin}
+\safetable{risk_staking}
+\safefigure{results/risk_analysis.png}{0.98}{Equity versus the luck-only band, ruin probability by bankroll, and staking schemes.}
+\todo{interpret: drawdown under the null shows how large losses are without any skill; Kelly with mis-calibrated probabilities}
+
+\section{Discussion and Limitations}
+\begin{itemize}[noitemsep]
+  \item A one-season sample cannot separate a small edge from luck; the power table states what it could detect. More seasons are the only remedy.
+  \item Features exclude lineups, injuries and expected goals, and rest days ignore European and cup fixtures.
+  \item Best-odds results assume the best quoted price can actually be obtained; average odds are a pre-closing snapshot, so CLV contains some timing noise.
+  \item Power de-vigging is a modelling choice; Shin's method is a natural alternative.
+  \item Rules were selected on one season; the holdout evaluates one pre-chosen strategy, but the development grid size should be borne in mind.
+\end{itemize}
+
+\section{Conclusion}
+\todo{three sentences: (1) does anything beat the market with statistical support, (2) what the CLV and power analyses say about how convincing the evidence is, (3) the risk takeaway}
+
+\paragraph{Reproducibility.} \texttt{python run\_all.py} regenerates every table and figure from raw data; \texttt{python -m pytest} runs the leakage and metric tests.
+
+\end{document}

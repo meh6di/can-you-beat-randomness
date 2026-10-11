@@ -10,7 +10,7 @@ Sources: de-vigged market average, Pinnacle (if columns present), climatology,
 logistic regression, raw XGBoost, Platt-calibrated XGBoost.
 Lower is better for every score. Negative delta = better than the market.
 
-Usage:  python prob_eval.py [--refresh]
+Usage:  python prob_eval.py [--split holdout|dev|all]  (default: holdout)
 """
 import sys
 import numpy as np
@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 
 from common import (
-    MODELS, LABELS, OUTCOMES, RESULTS_DIR, SEED, get_predictions, odds_array, devig,
+    MODELS, LABELS, OUTCOMES, RESULTS_DIR, SEED, get_predictions, split_from_argv, odds_array, devig,
     model_probs, actual_index,
 )
 
@@ -87,7 +87,9 @@ def ece_noise_floor(p, n_sims=N_FLOOR_SIMS):
 
 
 def main():
-    df = get_predictions(refresh="--refresh" in sys.argv)
+    split = split_from_argv("holdout")
+    print(f"Split: {split}")
+    df = get_predictions(split)
     src = build_sources(df)
 
     ok = np.ones(len(df), bool)
@@ -159,7 +161,7 @@ def main():
           "calibrated; only ECE clearly above it (small p_vs_perfect) indicates miscalibration.\n")
 
     # ------------------------------------------------------------------- figure
-    plot_names = [k for k in ("market", "pinnacle", "logreg", "xgb", "xgb_cal") if k in src]
+    plot_names = [k for k in ["market", "pinnacle"] + MODELS if k in src]
     ncols = 3
     nrows = int(np.ceil(len(plot_names) / ncols))
     fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 4.6 * nrows))

@@ -1,52 +1,54 @@
+"""Download football-data.co.uk CSVs (all leagues x seasons in config.py)."""
 import os
+import time
 import urllib.request
 
-# Define top 5 leagues and their Football-Data codes
-LEAGUES = {
-    "premier_league": "E0",
-    "la_liga": "SP1",
-    "serie_a": "I1",
-    "bundesliga": "D1",
-    "ligue_1": "F1"
-}
+import config as C
 
-# Football-Data URL codes mapped to readable names
-SEASONS = {
-    "1920": "2019-2020",   # extra training data
-    # "2021": "2020-2021",   # COVID season (mostly no crowds): left out on purpose
-    "2122": "2021-2022",
-    "2223": "2022-2023",
-    "2324": "2023-2024",
-    "2425": "2024-2025",   # fresh holdout
-    "2526": "2025-2026"    # fresh holdout
-}
+BASE_URL = "https://www.football-data.co.uk/mmz4281"
 
-OUTPUT_DIR = "data_raw"
+
+def looks_like_csv(path):
+    """Cheap sanity check: header must contain the Div/Date/HomeTeam columns."""
+    try:
+        with open(path, "r", encoding="latin-1") as f:
+            head = f.readline()
+        return all(c in head for c in ("Div", "Date", "HomeTeam"))
+    except OSError:
+        return False
+
+
+def download(url, path, retries=3):
+    for attempt in range(1, retries + 1):
+        try:
+            urllib.request.urlretrieve(url, path)
+            if looks_like_csv(path):
+                return True
+            print(f"  not a valid CSV (attempt {attempt}): {url}")
+        except Exception as e:  # network errors, 404 ...
+            print(f"  failed (attempt {attempt}): {url}: {e}")
+        time.sleep(1.5 * attempt)
+    if os.path.exists(path):
+        os.remove(path)     # never leave a corrupt file behind
+    return False
+
 
 def fetch_datasets():
-    # Create the folder if it doesn't already exist
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    base_url = "https://www.football-data.co.uk/mmz4281"
-
-    for league_name, league_code in LEAGUES.items():
-        for season_code, season_label in SEASONS.items():
-            url = f"{base_url}/{season_code}/{league_code}.csv"
-            filename = f"{league_name}_{season_label}.csv"
-            filepath = os.path.join(OUTPUT_DIR, filename)
-
-            # Skip download if the file is already there
-            if os.path.exists(filepath):
-                print(f"Skipping {filename} (already exists)")
+    os.makedirs(C.RAW_DIR, exist_ok=True)
+    failed = []
+    for league, code in C.LEAGUE_CODES.items():
+        for season_code, label in C.SEASONS.items():
+            path = os.path.join(C.RAW_DIR, f"{league}_{label}.csv")
+            if os.path.exists(path) and looks_like_csv(path):
+                print(f"Skipping {league}_{label}.csv (already exists)")
                 continue
+            print(f"Downloading {league}_{label}.csv ...")
+            if not download(f"{BASE_URL}/{season_code}/{code}.csv", path):
+                failed.append(f"{league}_{label}")
+    print(f"\nDone. Files in '{C.RAW_DIR}/'.")
+    if failed:
+        print("FAILED:", ", ".join(failed))
 
-            print(f"Downloading {filename}...")
-            try:
-                urllib.request.urlretrieve(url, filepath)
-            except Exception as e:
-                print(f"Failed to fetch {url}: {e}")
-
-    print("\nDownload complete. Files are ready in the 'data_raw' folder.")
 
 if __name__ == "__main__":
     fetch_datasets()

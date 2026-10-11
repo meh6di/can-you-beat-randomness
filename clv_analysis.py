@@ -18,7 +18,7 @@ Requires closing-odds columns (PSCH/PSCD/PSCA, optionally MaxH/D/A). Add them to
 KEEP_COLUMNS in clean_data.py, then re-run clean_data.py and engineer_features.py
 (see the patched clean_data.py shipped with this script).
 
-Usage:  python clv_analysis.py [--refresh]
+Usage:  python clv_analysis.py [--split holdout|dev|all]  (default: holdout)
 """
 import sys
 import numpy as np
@@ -28,7 +28,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from common import (
-    MODELS, LABELS, RESULTS_DIR, SEED, get_predictions, pick_bets, odds_array, devig,
+    MODELS, LABELS, RESULTS_DIR, SEED, get_predictions, split_from_argv, pick_bets, odds_array, devig,
     mean_ci, bootstrap_means, fmt_pct,
 )
 
@@ -57,13 +57,14 @@ def row_for(label, odds_label, clv, profit=None, skill=None, beat_raw=None):
 
 
 def main():
-    df = get_predictions(refresh="--refresh" in sys.argv)
+    split = split_from_argv("holdout")
+    print(f"Split: {split}")
+    df = get_predictions(split)
     needed = ["PSCH", "PSCD", "PSCA"]
     if not set(needed) <= set(df.columns):
         raise SystemExit(
             "Closing odds (PSCH/PSCD/PSCA) not found in the feature files.\n"
-            "Use the patched clean_data.py (adds PSC*, AvgC*, Max*), then run:\n"
-            "  python clean_data.py && python engineer_features.py && python clv_analysis.py --refresh"
+            "Run: python clean_data.py && python engineer_features.py && python walkforward.py"
         )
 
     close_raw = odds_array(df, "PSC")
@@ -94,7 +95,10 @@ def main():
 
         for m in MODELS:
             bets = pick_bets(df, m, "edge", THRESHOLD)
-            idx = bets.index.to_numpy()
+            if len(bets) < 2:
+                print(f"  (no bets for {LABELS[m]} at this threshold - skipped)")
+                continue
+            idx = df.index.get_indexer(bets.index)
             pk = bets["pick"].to_numpy()
             clv = clv_all[idx, pk]
             skill = clv - clv_all[idx].mean(axis=1)      # vs random side of the same match
@@ -127,8 +131,9 @@ def main():
           "add noise, and de-vigging is proportional (Shin/power methods are an easy upgrade).")
 
     # ------------------------------------------------------------------- figure
-    fig, axes = plt.subplots(1, len(MODELS), figsize=(5 * len(MODELS), 3.8), sharey=True)
-    for ax, m in zip(np.atleast_1d(axes), MODELS):
+    plot_models = [m for m in MODELS if m in curves]
+    fig, axes = plt.subplots(1, len(plot_models), figsize=(5 * len(plot_models), 3.8), sharey=True)
+    for ax, m in zip(np.atleast_1d(axes), plot_models):
         _, cum_profit, cum_clv = curves[m]
         ax.plot(cum_profit, color="royalblue", label="Realised profit")
         ax.plot(cum_clv, color="darkorange", ls="--", label="Cumulative CLV (expected vs close)")
