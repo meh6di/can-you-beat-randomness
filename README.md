@@ -23,7 +23,7 @@
   <p align="center">
     An academic evaluation of sports market efficiency, machine learning calibration, and the mathematical realities of Gambler's Ruin.
     <br />
-    <a href="https://github.com/meh6di/can-you-beat-randomness/docs/report_randomness.pdf"><strong>📄 Read the full report (PDF) »</strong></a>
+    <a href="[https://github.com/meh6di/can-you-beat-randomness/docs/report_randomness.pdf](https://github.com/meh6di/can-you-beat-randomness/blob/main/docs/report_randomness.pdf)"><strong>📄 Read the full report (PDF) »</strong></a>
     <br />
     <br />
     <a href="https://github.com/meh6di/can-you-beat-randomness/issues/new?title=Bug%3A%20">Report Bug</a>
