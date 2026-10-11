@@ -96,9 +96,9 @@ Rather than acting as a commercial advisory or tipping system, this research sys
 ### Core Discoveries
 
 1. **The Overround Gravity Well:** A blind random bettor loses between **-6% and -7% ROI** directly to the bookmaker's pricing cut.
-2. **Smooth Probabilities Beat Complex Trees:** Uncalibrated tree models (XGBoost) output step-wise, overconfident predictions that result in severe drawdowns (-6.31% ROI). Multinomial Logistic Regression provides smooth log-odds calibration, resisting market efficiency far more effectively.
+2. **Smooth Probabilities Beat Complex Trees:** Uncalibrated tree models (XGBoost) output step-wise, overconfident predictions that result in severe drawdowns (-6.31% ROI). Multinomial Logistic Regression produces smoother log-odds that stay closer to the market and fared better overall, though no significance test was run on this difference.
 3. **The Bundesliga Anomaly:** Out-of-sample regime shifts (such as Bayer Leverkusen's undefeated 2023–2024 season) instantly break models relying on two-year historical distributions, showing how non-stationary sports dynamics penalize rigid statistical assumptions.
-4. **The Reality of Gambler's Ruin:** Monte Carlo simulations reveal that even when a model achieves near break-even performance over a full season, prolonged drawdown periods are deep enough to wipe out retail bankrolls.
+4. **The Reality of Gambler's Ruin:** Monte Carlo simulations reveal that even when a model finishes with an ROI close to zero over a full season (-1.03% over 752 bets, statistically indistinguishable from both zero and the random baseline), prolonged drawdown periods are deep enough to wipe out retail bankrolls.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -200,11 +200,11 @@ To investigate whether algorithmic profitability is real or an illusion of luck,
 ### Critical Findings
 
 * **The Illusion of Skill:** The model's equity trajectory falls inside the 100-bettor Monte Carlo cloud. Periods of upward movement are statistically consistent with ordinary positive variance rather than true market inefficiencies.
-* **Drawdown Exceeds Capitalization:** Despite finishing near break-even overall (-1.03%), the model experienced prolonged peak-to-trough drawdowns exceeding **-25 to -30 units**. Under typical bankroll management rules, retail bettors would face total capital wipeout before seeing recovery.
+* **Drawdown Exceeds Capitalization:** Despite an overall ROI close to zero (-1.03%), the model experienced a maximum peak-to-trough drawdown of **-51.4 units**, crossing a 20-unit bankroll threshold within the first 100 bets. Under typical bankroll management rules, retail bettors would face total capital wipeout before seeing recovery.
 
 ### Conclusion
 
-After the bookmaker's margin, none of the models produced returns distinguishable from luck over the 2023–2024 test season. The strong results in individual leagues (e.g. Serie A) rest on small samples of roughly 120–200 bets and are consistent with ordinary variance. Even near break-even performance carried drawdowns large enough to ruin a typical bankroll, so in this study, modeling skill did not translate into a reliable betting edge.
+After the bookmaker's margin, none of the models produced returns distinguishable from luck over the 2023–2024 test season. The strong results in individual leagues (e.g. Serie A) rest on small samples of roughly 120–200 bets and are consistent with ordinary variance. No formal significance test is reported, and the 752-bet aggregate ROI cannot be distinguished from zero or from the -7% random baseline. Even an aggregate ROI close to zero carried drawdowns large enough to ruin a typical bankroll, so in this study, modeling skill did not translate into a reliable betting edge.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
