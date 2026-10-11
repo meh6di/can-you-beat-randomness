@@ -135,7 +135,7 @@ $$\text{MDE} = (z_{0.95} + z_{0.80}) \frac{\sigma}{\sqrt{n}}$$
 ## Academic Report
 
 The complete academic paper with derivations, methodology, and LaTeX-compiled tables is available at:
-👉 **[`docs/report_randomness.pdf`](https://www.google.com/search?q=docs/report_randomness.pdf)**
+👉 **[`docs/report_randomness.pdf`](https://github.com/meh6di/can-you-beat-randomness/blob/main/docs/report_randomness.pdf)**
 
 ---
 
