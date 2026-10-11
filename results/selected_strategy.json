@@ -1,0 +1,17 @@
+{
+  "Avg": {
+    "model": "lr",
+    "rule": "edge",
+    "threshold": 0.06
+  },
+  "Max": {
+    "model": "lr",
+    "rule": "edge",
+    "threshold": 0.06
+  },
+  "PS": {
+    "model": "lr",
+    "rule": "edge",
+    "threshold": 0.06
+  }
+}

@@ -1,0 +1,16 @@
+A,B,diff_units,ci_lo,ci_hi,p_two_sided
+"Logistic regression (scaled, tuned)",Market x strength-model blend,0.4399999999999977,-35.074749999999995,36.890499999999996,0.987
+"Logistic regression (scaled, tuned)",XGBoost (raw),41.12,-11.7725,92.47124999999998,0.1224
+"Logistic regression (scaled, tuned)",XGBoost (calibrated),24.339999999999996,-27.731250000000003,76.60199999999996,0.3542
+"Logistic regression (scaled, tuned)",Favorite (all matches),48.559999999999995,-42.291,137.36599999999993,0.297
+"Logistic regression (scaled, tuned)",Random (expected),141.25333333333333,91.73599999999999,190.69358333333332,0.0
+Market x strength-model blend,XGBoost (raw),40.67999999999999,-0.8705000000000042,80.68074999999999,0.0542
+Market x strength-model blend,XGBoost (calibrated),23.899999999999995,-16.5605,62.63049999999999,0.2334
+Market x strength-model blend,Favorite (all matches),48.11999999999999,-28.261999999999993,128.9615,0.2256
+Market x strength-model blend,Random (expected),140.81333333333336,102.95316666666666,177.33358333333334,0.0
+XGBoost (raw),XGBoost (calibrated),-16.78,-62.28124999999999,28.971999999999976,0.4538
+XGBoost (raw),Favorite (all matches),7.439999999999994,-85.451,100.24399999999996,0.8614
+XGBoost (raw),Random (expected),100.13333333333335,49.48516666666667,150.46533333333332,0.0
+XGBoost (calibrated),Favorite (all matches),24.220000000000013,-62.06149999999999,111.32624999999992,0.5656
+XGBoost (calibrated),Random (expected),116.91333333333333,63.585416666666674,170.40758333333335,0.0
+Favorite (all matches),Random (expected),92.69333333333333,-12.275249999999991,199.48674999999992,0.0876

@@ -1,0 +1,16 @@
+\begin{table}[H]\centering\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrrr}
+\toprule
+scenario & scheme & final\_median & final\_p5 & final\_p95 & p\_loss & p\_dd\_over\_50pct & p\_below\_20 \\
+\midrule
+observed & flat 1 unit & 99.950 & 69.997 & 132.162 & 0.501 & 0.007 & 0.000 \\
+observed & 1\% of bankroll & 98.234 & 73.121 & 135.227 & 0.537 & 0.000 & 0.000 \\
+observed & quarter Kelly (cap 3\%) & 104.731 & 62.772 & 181.274 & 0.442 & 0.035 & 0.000 \\
+- & flat 1 unit & 89.170 & 60.605 & 119.181 & 0.725 & 0.020 & 0.000 \\
+- & 1\% of bankroll & 88.328 & 66.554 & 118.962 & 0.754 & 0.000 & 0.000 \\
+- & quarter Kelly (cap 3\%) & 78.877 & 48.485 & 134.081 & 0.771 & 0.145 & 0.000 \\
+\bottomrule
+\end{tabular}}
+\caption{Staking schemes from a 100-unit bankroll.}\label{tab:risk_staking}
+\end{table}

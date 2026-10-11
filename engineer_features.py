@@ -1,98 +1,137 @@
-import os
+"""Leakage-free features, built per league ACROSS seasons (state carries over).
+
+  * Elo ratings (home advantage, goal-difference multiplier, regression to the mean each
+    season; newly promoted teams start lower)
+  * Exponentially weighted form for BOTH teams: points, attack (goals for), defence
+    (goals against), shots on target for/against, corners for/against. Shrunk towards the
+    league mean while a team has few games (n_games), so promoted teams don't produce noise.
+  * Rest days, differentials, de-vigged market probabilities and market log-ratios.
+Everything at row t only uses matches strictly before row t's date.
+Output: data_features/<league>.csv  (all seasons, with a `Season` column)
+"""
 import glob
+import os
+
+import numpy as np
 import pandas as pd
 
-CLEAN_DIR = "data_clean"
-FEATURES_DIR = "data_features"
+import config as C
+from common import devig
 
-def build_rich_features(df):
-    df = df.copy()
-    df["Date"] = pd.to_datetime(df["Date"])
-    df = df.sort_values("Date").reset_index(drop=True)
 
-    # 1. Market implied fair probabilities (removing bookmaker overround)
-    raw_h = 1.0 / df["AvgH"]
-    raw_d = 1.0 / df["AvgD"]
-    raw_a = 1.0 / df["AvgA"]
-    overround = raw_h + raw_d + raw_a
-    df["market_prob_h"] = raw_h / overround
-    df["market_prob_d"] = raw_d / overround
-    df["market_prob_a"] = raw_a / overround
+def add_market_features(df):
+    odds = df[["AvgH", "AvgD", "AvgA"]].to_numpy(float)
+    p = devig(odds)
+    df["market_prob_h"], df["market_prob_d"], df["market_prob_a"] = p.T
+    df["overround"] = (1.0 / odds).sum(axis=1)
+    df["mkt_lr_ha"] = np.log(p[:, 0] / p[:, 2])
+    df["mkt_lr_d"] = np.log(p[:, 1] / (p[:, 0] + p[:, 2]))
+    return df
 
-    # 2. Reshape match data to team-match perspective
-    h = df[["Date", "HomeTeam", "FTHG", "FTAG", "HS", "AS", "HST", "AST", "HC", "AC", "HF", "AF", "HY", "AY", "HR", "AR", "FTR"]].copy()
-    h.columns = ["Date", "Team", "GF", "GA", "Shots_For", "Shots_Ag", "SoT_For", "SoT_Ag", "Corners_For", "Corners_Ag", "Fouls_For", "Fouls_Ag", "YC", "YC_Ag", "RC", "RC_Ag", "FTR"]
-    h["Points"] = h["FTR"].apply(lambda x: 3 if x == "H" else (1 if x == "D" else 0))
-    h["IsHome"] = 1
 
-    a = df[["Date", "AwayTeam", "FTAG", "FTHG", "AS", "HS", "AST", "HST", "AC", "HC", "AF", "HF", "AY", "HY", "AR", "HR", "FTR"]].copy()
-    a.columns = ["Date", "Team", "GF", "GA", "Shots_For", "Shots_Ag", "SoT_For", "SoT_Ag", "Corners_For", "Corners_Ag", "Fouls_For", "Fouls_Ag", "YC", "YC_Ag", "RC", "RC_Ag", "FTR"]
-    a["Points"] = a["FTR"].apply(lambda x: 3 if x == "A" else (1 if x == "D" else 0))
-    a["IsHome"] = 0
+def compute_elo(df, cfg=None):
+    """Pre-match Elo ratings (arrays) for matches sorted by date."""
+    cfg = cfg or C.ELO
+    rating, cur, first = {}, None, df["Season"].iloc[0]
+    eh, ea = np.empty(len(df)), np.empty(len(df))
+    goals_h = np.nan_to_num(df["FTHG"].to_numpy(float))
+    goals_a = np.nan_to_num(df["FTAG"].to_numpy(float))
+    for i, (season, h, a, res) in enumerate(zip(df["Season"], df["HomeTeam"], df["AwayTeam"], df["FTR"])):
+        if season != cur:
+            if cur is not None:      # regress every rating towards the mean between seasons
+                for t in rating:
+                    rating[t] = (1 - cfg["season_regress"]) * rating[t] + cfg["season_regress"] * cfg["start"]
+            cur = season
+        for t in (h, a):
+            if t not in rating:
+                rating[t] = cfg["start"] if season == first else cfg["new_team"]
+        rh, ra = rating[h], rating[a]
+        eh[i], ea[i] = rh, ra                                   # recorded BEFORE the update
+        exp_h = 1.0 / (1.0 + 10 ** (-(rh + cfg["home_adv"] - ra) / 400.0))
+        s = {"H": 1.0, "D": 0.5, "A": 0.0}[res]
+        delta = cfg["k"] * (1.0 + np.log1p(abs(goals_h[i] - goals_a[i]))) * (s - exp_h)
+        rating[h] += delta
+        rating[a] -= delta
+    return eh, ea
 
-    team_matches = pd.concat([h, a]).sort_values(["Team", "Date"]).reset_index(drop=True)
 
-    # 3. Rest Days (fatigue / schedule congestion)
-    team_matches["rest_days"] = team_matches.groupby("Team")["Date"].diff().dt.days.fillna(7).clip(upper=14)
+def compute_form(df):
+    """EWMA form + n_games + rest days, per team, carried across seasons."""
+    d = df.reset_index(drop=True).copy()
+    d["mid"] = np.arange(len(d))
+    pts = {"H": {"H": 3, "D": 1, "A": 0}, "A": {"H": 0, "D": 1, "A": 3}}
 
-    # 4. Rolling 5-Game Averages (shifted by 1 to prevent data leakage)
-    metrics = [
-        "Points", "GF", "GA", "Shots_For", "Shots_Ag",
-        "SoT_For", "SoT_Ag", "Corners_For", "Corners_Ag",
-        "Fouls_For", "YC", "RC"
-    ]
-    for m in metrics:
-        team_matches[f"roll_{m.lower()}_5"] = (
-            team_matches.groupby("Team")[m]
-            .transform(lambda s: s.shift(1).rolling(5, min_periods=1).mean())
-        )
+    def side(team, ishome):
+        s = "H" if ishome else "A"
+        f, g = ("FTHG", "FTAG") if ishome else ("FTAG", "FTHG")
+        sf, sa = ("HST", "AST") if ishome else ("AST", "HST")
+        cf, ca = ("HC", "AC") if ishome else ("AC", "HC")
+        return pd.DataFrame({
+            "mid": d["mid"], "Date": d["Date"], "Team": d[team], "IsHome": int(ishome),
+            "points": d["FTR"].map(pts[s]), "gf": d[f], "ga": d[g],
+            "sot_for": d.get(sf, np.nan), "sot_ag": d.get(sa, np.nan),
+            "corners_for": d.get(cf, np.nan), "corners_ag": d.get(ca, np.nan),
+        })
 
-    # 5. Quality ratios
-    team_matches["roll_sot_acc_5"] = team_matches["roll_sot_for_5"] / (team_matches["roll_shots_for_5"] + 1e-5)
-    team_matches["roll_conv_5"] = team_matches["roll_gf_5"] / (team_matches["roll_sot_for_5"] + 1e-5)
+    long = pd.concat([side("HomeTeam", True), side("AwayTeam", False)])
+    long = long.sort_values(["Team", "Date", "mid"], kind="stable").reset_index(drop=True)
+    g = long.groupby("Team", sort=False)
+    long["n_games"] = g.cumcount()                                  # prior matches in dataset
+    long["rest"] = g["Date"].diff().dt.days.fillna(7).clip(2, 14)
+    w = long["n_games"] / (long["n_games"] + C.SHRINK_K)
+    for m in C.FORM_METRICS:
+        # league-wide prior = mean over strictly EARLIER DAYS (no same-day leakage)
+        daily = long.groupby("Date")[m].agg(["sum", "count"]).sort_index()
+        prior_day = daily["sum"].cumsum().shift(1) / daily["count"].cumsum().shift(1)
+        prior = long["Date"].map(prior_day)
+        ewm = g[m].transform(lambda s: s.shift(1).ewm(halflife=C.EWM_HALFLIFE, min_periods=1).mean())
+        long[f"f_{m}"] = (w * ewm.fillna(prior) + (1 - w) * prior).fillna(0.0)
+    H = long[long["IsHome"] == 1].set_index("mid")
+    A = long[long["IsHome"] == 0].set_index("mid")
+    out = d
+    for m in C.FORM_METRICS:
+        out[f"home_f_{m}"] = out["mid"].map(H[f"f_{m}"])
+        out[f"away_f_{m}"] = out["mid"].map(A[f"f_{m}"])
+    for col, src in (("n_games", "n_games"), ("rest", "rest")):
+        out[f"home_{col}"] = out["mid"].map(H[src])
+        out[f"away_{col}"] = out["mid"].map(A[src])
+    return out.drop(columns="mid")
 
-    # 6. Separate back into Home and Away sets
-    feat_cols = [c for c in team_matches.columns if c.startswith("roll_")] + ["rest_days"]
 
-    h_feats = team_matches[team_matches["IsHome"] == 1][["Date", "Team"] + feat_cols].copy()
-    h_feats.columns = ["Date", "HomeTeam"] + [f"home_{c}" for c in feat_cols]
+def build_league_features(df):
+    """df: one league, all seasons, with `Season`. Returns df + features (sorted by date)."""
+    df = df.sort_values("Date", kind="stable").reset_index(drop=True)
+    df = add_market_features(df)
+    df["elo_home"], df["elo_away"] = compute_elo(df)
+    df["elo_diff"] = df["elo_home"] - df["elo_away"]
+    df["elo_sum"] = df["elo_home"] + df["elo_away"] - 2 * C.ELO["start"]
+    df = compute_form(df)
+    df["diff_points"] = df["home_f_points"] - df["away_f_points"]
+    df["diff_sot"] = df["home_f_sot_for"] - df["away_f_sot_for"]
+    df["diff_corners"] = df["home_f_corners_for"] - df["away_f_corners_for"]
+    df["diff_goal_diff"] = (df["home_f_gf"] - df["home_f_ga"]) - (df["away_f_gf"] - df["away_f_ga"])
+    return df
 
-    a_feats = team_matches[team_matches["IsHome"] == 0][["Date", "Team"] + feat_cols].copy()
-    a_feats.columns = ["Date", "AwayTeam"] + [f"away_{c}" for c in feat_cols]
 
-    # Merge features back into match dataframe
-    out = df.merge(h_feats, on=["Date", "HomeTeam"], how="left")
-    out = out.merge(a_feats, on=["Date", "AwayTeam"], how="left")
+def process_all():
+    os.makedirs(C.FEATURES_DIR, exist_ok=True)
+    for league in C.LEAGUES:
+        frames = []
+        for label in C.SEASONS.values():
+            p = os.path.join(C.CLEAN_DIR, f"{league}_{label}.csv")
+            if os.path.exists(p):
+                f = pd.read_csv(p, parse_dates=["Date"])
+                f["Season"] = label
+                frames.append(f)
+        if not frames:
+            print(f"Skipping {league}: no cleaned files")
+            continue
+        out = build_league_features(pd.concat(frames, ignore_index=True))
+        out["league"] = league
+        out.to_csv(os.path.join(C.FEATURES_DIR, f"{league}.csv"), index=False)
+        print(f"{league}: {len(out)} matches, {out['Season'].nunique()} seasons")
+    print(f"\nFeatures saved to '{C.FEATURES_DIR}/'.")
 
-    # 7. Differentials (Home advantage / strength gap)
-    out["diff_points_5"] = out["home_roll_points_5"] - out["away_roll_points_5"]
-    out["diff_sot_5"] = out["home_roll_sot_for_5"] - out["away_roll_sot_for_5"]
-    out["diff_corners_5"] = out["home_roll_corners_for_5"] - out["away_roll_corners_for_5"]
-    out["diff_rest_days"] = out["home_rest_days"] - out["away_rest_days"]
-
-    return out
-
-def process_all_files():
-    os.makedirs(FEATURES_DIR, exist_ok=True)
-    files = glob.glob(os.path.join(CLEAN_DIR, "*.csv"))
-
-    if not files:
-        print(f"No files found in '{CLEAN_DIR}'. Run clean_data.py first.")
-        return
-
-    for file_path in files:
-        filename = os.path.basename(file_path)
-        df = pd.read_csv(file_path)
-        df_rich = build_rich_features(df)
-
-        # Drop matchday 1 where teams have 0 prior matches in the dataset
-        df_rich = df_rich.dropna(subset=["home_roll_points_5", "away_roll_points_5"]).reset_index(drop=True)
-
-        out_path = os.path.join(FEATURES_DIR, filename)
-        df_rich.to_csv(out_path, index=False)
-        print(f"Engineered rich features for {filename} ({len(df_rich)} matches)")
-
-    print(f"\nAll files saved with rich features to '{FEATURES_DIR}'.")
 
 if __name__ == "__main__":
-    process_all_files()
+    process_all()
