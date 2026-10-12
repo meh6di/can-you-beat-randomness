@@ -1,141 +1,160 @@
 # Can You Beat Randomness?
 
-> *"You can't watch a match without a betting ad popping up, so I built a model to find out if anyone actually beats market randomness."*
+> *"You can't watch a match without a betting ad popping up, so I built a model to find out if anyone actually beats the market."*
 
-An empirical investigation of football betting-market efficiency: evaluating walk-forward predictive models against Pinnacle closing lines across the top five European leagues, and determining whether observed out-of-sample returns reflect structural market inefficiencies or sample variance under an efficient-market null hypothesis.
+An empirical investigation of football betting-market efficiency: walk-forward predictive models evaluated against de-vigged market prices and Pinnacle closing lines across the top five European leagues, and a test of whether observed out-of-sample returns reflect real inefficiencies or just sample variance under an efficient-market null.
 
 > **Disclaimer:** Solely for academic, educational, and research purposes. Not financial or gambling advice.
 
 ---
 
-### Core Conclusion: Can You Beat Randomness?
+## Core Conclusion: Can You Beat Randomness?
 
-**No.** Across seven seasons and five leagues evaluated under strict walk-forward out-of-sample discipline:
+**No, not with statistical support.** Data cover seven seasons (2019–20 to 2025–26) and five leagues. Models are evaluated walk-forward on 2024–25 (development) and 2025–26 (holdout).
 
-1. **Information Supremacy of the Market**: De-vigged closing lines achieve strictly lower cross-entropy (log loss), multiclass Brier scores, and Ranked Probability Scores (RPS) than all models ($\Delta \text{LogLoss} > 0$, 95% CI bounded strictly away from zero). In the market-strength blend ($p \propto p_{\text{mkt}}^{1-w} p_{\text{str}}^w$), the optimized weight collapses to $w < 0.05$, confirming that historical Elo ratings and form metrics provide zero marginal predictive information once closing prices are set.
-2. **Failure to Reject the Efficient-Market Null**: Observed holdout returns across all strategy thresholds remain fully consistent with $20{,}000$ counterfactual draws from the de-vigged market null distribution ($p \in [0.15, 0.78]$); no strategy survives multiple-testing correction.
-3. **Absence of Closing-Line Value (CLV)**: The 95% bootstrap confidence interval for pick skill—isolating directional selection from the underlying overround—spans zero ($[-0.75\%, +0.55\%]$). Strategies beat closing odds on $49.8\%$ of wagers, indistinguishable from a fair coin toss.
-4. **Structural Statistical Power Deficit**: With holdout sample sizes of $n \approx 300\text{--}500$ bets and a per-bet return standard deviation of $\sigma \approx 1.6$, the minimum true ROI detectable with 80% power at $\alpha = 0.05$ is **$12\%\text{--}15\%$**. Detecting a plausible $2\%$ edge requires $n > 7{,}500$ independent bets; single-season track records are mathematically underpowered to distinguish skill from luck.
-5. **Winner's Curse**: Parameter selection maximizing mean CLV on the 2024–25 development season completely regresses on the 2025–26 holdout season (rank correlation $\rho = -0.05$), demonstrating that threshold optimization captures sample-specific noise rather than persistent market mispricings.
-6. **Bankroll Ruin**: Model probability miscalibration in distributional tails causes Kelly and fractional Kelly staking to catastrophically over-stake, accelerating the probability of ruin past $30\%$ for standard bankroll sizes.
+1. **The market is the best forecaster.** De-vigged average odds achieve the best log loss (0.961), Brier score (0.571) and RPS (0.192). Only calibrated XGBoost is *significantly* worse (Δ log loss = +0.010, 95% CI [+0.003, +0.017], p = 0.006); logistic regression and raw XGBoost are directionally worse with CIs that include zero. The optimised market–strength blend weight collapses to w ≈ 0: Elo and form features add no information beyond market prices.
+2. **Failure to reject the efficient-market null.** Every holdout ROI is consistent with 20,000 outcome redraws from de-vigged market probabilities (p-values from 0.08 to 0.85 across model–threshold combinations). The smallest p-value (raw XGBoost, 3% threshold, ROI −1.0%, p = 0.084) is above even the uncorrected 5% level; the Bonferroni threshold for the 8 variants tested would be about 0.006. ROIs must be compared with the null mean (about −6% to −9%), not with zero.
+3. **Small pick skill, but no profit.** The selected logistic strategy (6% edge, 77 holdout bets) shows a statistically significant pick skill of **+2.18%** (95% CI [+1.29%, +3.16%]). Two caveats: (a) simply backing the favourite already earns about +2.0 points at average odds (CLV −4.85% vs −6.88% for a random pick), so most of this skill at average odds is what a favourite lean would give (about +0.65 points at best odds, vs +2.15% for the model); (b) positive pick skill does not make CLV positive. Mean CLV vs Pinnacle's close is −4.12% at average odds (−0.46%, CI [−1.46%, +0.55%] at best odds), and only 32.5% of wagers beat the raw closing odds at average prices. The realised ROI of +7.5% (CI [−25.9%, +43.7%], p = 0.19) is a lucky outcome of 77 bets, not an edge. Raw and calibrated XGBoost show no significant pick skill.
+4. **Structural power deficit.** With 139–226 bets at the 6% threshold and a per-bet standard deviation of about 1.3–1.6 units, the smallest true ROI detectable with 80% power at α = 0.05 (one-sided) is **22%–33%** (about 45% for the 77-bet selected strategy; about 13% for the ~850-bet 3% threshold runs, assuming σ ≈ 1.5). Detecting a 2% edge needs roughly **27,700–38,400 bets**, about 30–45 times the bets placed at the 3% threshold in the holdout.
+5. **Selection on development data does not carry over cleanly.** The strategy chosen on 2024–25 by maximum mean CLV (logistic regression, 6% edge) saw CLV fall from −2.5% to −4.1% at average odds and from +1.4% to −0.5% at best odds, but stay roughly flat at Pinnacle prices (−1.5% to −1.3%). The development-vs-holdout rank correlation across the parameter grid is ρ = 0.74, so the relative ordering of settings is fairly stable and the evidence for a strong winner's curse is limited. What does not carry over is the level of CLV.
+6. **Bankroll risk without edge.** Under the efficient-market null, flat 1-unit staking from a 100-unit bankroll has a median final P&L of −11.3 units and a 73.2% chance of ending negative. Ruin probability is 74.5% for a 10-unit bankroll and 44.8% for 20 units. Quarter-Kelly using model probabilities raises the probability of a >50% drawdown to 14.5% (vs 2.0% for flat staking). A plausible cause is that Kelly stakes scale with estimated edge and the largest estimated edges are mostly noise; this was not tested.
+7. **Favourite–longshot bias at average odds.** Pooling 37,374 outcome-level bets, ROI falls by 5.7 percentage points per unit of log-odds (95% CI [−0.103, −0.009], p = 0.022). The loss is concentrated in the 6–10 odds bucket (−17.4% at average odds). The slopes at Pinnacle closing prices (−0.043, p = 0.090) and maximum odds (−0.011, p = 0.684) are smaller but lie inside the average-odds interval and were not tested against each other, so the bias is not shown to be absent at better prices. The 10+ bucket is too sparse to interpret.
 
 ---
 
 ## What This Project Does
 
-1. **Data** — Match results and multi-bookmaker odds from `football-data.co.uk` across five leagues (Premier League, La Liga, Serie A, Bundesliga, Ligue 1) from 2019–20 through 2025–26.
-2. **Features (Leakage-Controlled)** — Inter-season Elo ratings, exponentially weighted moving average (EWMA) form metrics (points, attack/defense goals, shots on target, corners), rest days, and power-method de-vigged market probability log-ratios.
-3. **Walk-Forward Models** — Monthly refitting using strictly preceding calendar windows:
-   - $L_2$-regularized Logistic Regression (standardized features, league dummies, validation-tuned $C$).
-   - Market $\times$ Strength Log-Linear Blend ($p \propto p_{\text{mkt}}^{1-w} p_{\text{strength}}^w$, $w \in [0, 1]$ tuned on validation).
-   - XGBoost (raw and recalibrated via multiclass vector scaling on a validation window).
-4. **Statistical Inference & Decision Framework**
-   - Percentile bootstrap confidence intervals and an *efficient-market null* ($20{,}000$ Monte Carlo simulations per strategy) for every ROI (`stats_tests.py`).
-   - Log loss, multiclass Brier score, and Ranked Probability Score (RPS) evaluated against market consensus, with Expected Calibration Error (ECE) tested against empirical sampling-noise floors (`prob_eval.py`).
-   - Closing-Line Value ($\mathrm{CLV} = o_{\text{taken}} p^{\text{Pinnacle close}} - 1$) and match-level pick skill, isolating directional selection variance from match outcome variance (`clv_analysis.py`).
-   - Strategy and threshold selection on 2024–25 (development), evaluated once on untouched 2025–26 (holdout) (`strategy_select.py`).
-   - Econometric analysis of favourite–longshot bias across odds buckets and log-odds regressions (`market_bias.py`).
-   - Monte Carlo capital risk analysis: drawdown distributions, ruin probabilities, and comparison of flat, proportional, and Kelly staking under miscalibrated probabilities (`risk_analysis.py`).
+1. **Data**: Match results and multi-bookmaker odds from `football-data.co.uk` for the Premier League, La Liga, Serie A, Bundesliga and Ligue 1, 2019–20 to 2025–26. The 2020–21 season (mostly played without crowds) is used only to build ratings and form, never to train or test.
+2. **Features (leakage-controlled)**: Elo ratings carried across seasons, exponentially weighted form (points, goals for/against, shots on target, corners; half-life of 5 matches, shrunk to the league mean for teams with few games), games played, rest days, and power-method de-vigged market log-ratios.
+3. **Walk-forward models**: Refit every calendar month of 2024–25 and 2025–26:
+   - L2-regularised logistic regression (standardised features, league dummies, validation-tuned C).
+   - Market × strength log-linear blend (p ∝ p_mkt^(1−w) · p_strength^w, w tuned on validation).
+   - XGBoost, raw and recalibrated with multinomial vector scaling on a validation window.
+4. **Betting rules**: One unit per match on the best outcome if its edge (p̂ − p_mkt) or expected value (p̂·o − 1) clears a threshold (3% or 6% in the reported runs), at average, best-available or Pinnacle prices.
+5. **Statistical inference**
+   - Bootstrap ROI intervals and an efficient-market null (20,000 simulations per strategy) in `stats_tests.py`.
+   - Log loss, multiclass Brier, RPS and ECE against its sampling-noise floor in `prob_eval.py`.
+   - Closing-line value and pick skill in `clv_analysis.py`.
+   - Dev/holdout strategy selection in `strategy_select.py`.
+   - Favourite–longshot analysis in `market_bias.py`.
+   - Monte Carlo bankroll risk in `risk_analysis.py`.
 
-All numbers live in `results/` (CSV + PNG); `results/summary.md` and `results/tex/` are generated directly by `make_report_tables.py`, eliminating manual reporting errors.
+All numbers live in `results/` (CSV + PNG). `results/summary.md` and `results/tex/` are generated by `make_report_tables.py`.
 
 ---
 
-## Statistical Evaluation
+## Probabilistic Quality (lower is better)
 
-### Probabilistic Quality (Holdout Season 2025–26)
+Paired differences are per-match versus the market (average odds, de-vigged).
 
-| Model / Benchmark | Log Loss | Brier Score | RPS | Paired $\Delta \text{LogLoss}$ vs Market (95% CI) | ECE (Equal-Mass) |
+| Model / Benchmark | Log Loss | Brier | RPS | Δ Log Loss vs Market (95% CI) | ECE (noise floor ≈ 0.020) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Market (Pinnacle De-vigged)** | **0.968** | **0.574** | **0.188** | *Reference Benchmark* | **0.016** (Noise Floor: 0.015) |
-| **Blend ($w < 0.05$)** | 0.970 | 0.575 | 0.189 | $+0.002$ $[+0.001, +0.004]$ | 0.018 |
-| **Logistic Regression** | 0.974 | 0.579 | 0.191 | $+0.006$ $[+0.003, +0.009]$ | 0.021 |
-| **Calibrated XGBoost** | 0.979 | 0.583 | 0.193 | $+0.011$ $[+0.007, +0.016]$ | 0.024 |
-| **Raw XGBoost** | 0.998 | 0.592 | 0.198 | $+0.030$ $[+0.022, +0.039]$ | 0.048 |
+| **Market (Avg odds, de-vigged)** | **0.961** | **0.571** | **0.192** | reference | 0.021 |
+| Pinnacle (de-vigged) | 0.962 | 0.572 | 0.192 | +0.001 [−0.000, +0.002] | 0.026 |
+| Pinnacle close (de-vigged) | 0.963 | 0.573 | 0.193 | +0.002 [−0.002, +0.007] | 0.022 |
+| Market × strength blend (w ≈ 0) | 0.961 | 0.571 | 0.192 | +0.000 | 0.021 |
+| Logistic regression | 0.964 | 0.573 | 0.193 | +0.004 [−0.003, +0.010] | 0.012 |
+| XGBoost (raw) | 0.966 | 0.574 | 0.194 | +0.005 [−0.001, +0.012] | 0.023 |
+| XGBoost (calibrated) | 0.970 | 0.577 | 0.195 | **+0.010 [+0.003, +0.017]** | 0.023 |
+| Climatology (class frequencies) | 1.070 | 0.647 | 0.228 | +0.109 [+0.085, +0.134] | 0.023 |
+
+All sources, including the market, have ECE within or close to the sampling-noise floor, so ECE does not separate the models.
 
 ---
 
-## Key Visualizations
+## Holdout Betting Results (1 bet per match)
 
-- **Realised PnL vs Cumulative CLV** (`results/clv_curves.png`): Demonstrates the $\sim 18\times$ variance reduction of CLV over realized return, showing how cumulative binary outcomes drift randomly away from price-efficiency metrics.
-- **Observed ROI vs Efficient-Market Null** (`results/market_null.png`): Situates holdout returns inside the empirical null distribution generated by sampling outcomes from de-vigged market probabilities.
-- **Favourite–Longshot Bias** (`results/market_bias.png`): Displays empirical return as a function of log-odds, showing structural underperformance on longshots ($o > 6.00$, $\text{ROI} < -18\%$) versus favourites ($o < 1.40$, $\text{ROI} \approx -2.5\%$).
+| Model | Threshold | Bets | ROI | 95% CI | p vs null |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Logistic regression | 3% | 860 | −2.02% | [−11.9%, +8.1%] | 0.146 |
+| XGBoost (raw) | 3% | 825 | −1.04% | [−13.0%, +11.4%] | 0.084 |
+| XGBoost (calibrated) | 3% | 832 | −7.12% | [−16.4%, +2.2%] | 0.509 |
+| Logistic regression | 6% | 139 | +0.32% | [−25.3%, +26.6%] | 0.261 |
+| XGBoost (raw) | 6% | 178 | −22.85% | [−45.4%, +0.8%] | 0.854 |
+| XGBoost (calibrated) | 6% | 226 | −10.58% | [−27.2%, +7.5%] | 0.679 |
+
+The blend places no bets at either threshold because it stays too close to the market. Under the null, expected ROI is about −6% to −9% (minus the margin), not zero.
 
 ---
 
-## Quickstart & Pipeline Execution
+## Key Visualisations
+
+- **Observed ROI vs efficient-market null** (`results/market_null.png`): holdout ROIs inside the simulated null distribution.
+- **Realised profit vs cumulative CLV** (`results/clv_curves.png`): realised P&L wanders randomly while cumulative CLV drifts smoothly. CLV's standard error is about 34× smaller than ROI's for the logistic strategy (16–20× for XGBoost).
+- **Favourite–longshot bias** (`results/market_bias.png`): blind ROI by odds bucket. At average odds, favourites (o < 1.5) are near break-even (−0.6%) and the 6–10 bucket loses 17.4%.
+- **Equity vs luck-only band** (`results/`): realised equity against the efficient-market null band, ruin probability by bankroll, and staking comparison.
+
+---
+
+## Quickstart
 
 ```sh
-# Setup environment
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Run complete pipeline sequentially
-python run_all.py
-
-# Run test suite
-python -m pytest -q
-
+python run_all.py                       # full pipeline
+python -m pytest -q                     # leakage and metric tests
 ```
 
-Execution flags:
+Flags:
 
-* `python run_all.py --skip-fetch` — Reuses existing cached data in `data_raw/`.
-* `python run_all.py --from walkforward` — Re-runs starting at model training.
-* `python run_all.py --only market_bias` — Executes a single target module.
+* `python run_all.py --skip-fetch`: reuse cached data in `data_raw/`.
+* `python run_all.py --from walkforward`: restart at model training.
+* `python run_all.py --only market_bias`: run a single module.
 
 ---
 
 ## Project Layout
 
 ```
-config.py              Configuration paths, season splits, league parameters, hyperparameters
-fetch_data.py          Download validation with retry logic from football-data.co.uk
-clean_data.py          Data integrity, deduplication, schema validation, odds boundary checks
-engineer_features.py   Inter-season Elo, EWMA form metrics, power-method market de-vigging
-models.py              Estimators (Regularized Logistic Regression, Vector-Scaled XGBoost, Blend)
-walkforward.py         Monthly expanding-window training and out-of-fold inference
-common.py              De-vigging algorithms, betting selection logic, bootstrap engines, CLV routines
-stats_tests.py         Bootstrap ROI intervals, efficient-market null simulation, power calculations
-prob_eval.py           Log loss, multiclass Brier score, RPS, paired tests, ECE noise floors
-clv_analysis.py        Pinnacle closing-line value, pick-skill derivation, variance ratio tests
-strategy_select.py     Parameter grid search on dev (2024–25), single-shot holdout evaluation (2025–26)
-market_bias.py         Favourite–longshot bias quantification and log-odds regressions
-risk_analysis.py       Monte Carlo drawdown simulations, ruin probabilities, staking comparisons
-make_report_tables.py  Generates results/summary.md and LaTeX tables in results/tex/
+config.py              Paths, season splits, league parameters, hyperparameters
+fetch_data.py          Download with retry logic from football-data.co.uk
+clean_data.py          Validation, deduplication, odds sanity checks
+engineer_features.py   Elo, EWMA form, power-method de-vigging
+models.py              Logistic regression, vector-scaled XGBoost, blend
+walkforward.py         Monthly walk-forward training and inference
+common.py              De-vigging, bet selection, bootstrap, CLV routines
+stats_tests.py         Bootstrap ROI, efficient-market null, power calculations
+prob_eval.py           Log loss, Brier, RPS, paired tests, ECE noise floors
+clv_analysis.py        Closing-line value, pick skill, variance ratio
+strategy_select.py     Grid search on dev (2024–25), single holdout run (2025–26)
+market_bias.py         Favourite–longshot bias and log-odds regressions
+risk_analysis.py       Monte Carlo drawdown, ruin and staking comparison
+make_report_tables.py  Generates results/summary.md and results/tex/
 run_all.py             Pipeline orchestrator
-tests/                 Unit test suite for leakage verification and mathematical invariants
-report.tex             Full academic report source
-docs/                  Pre-compiled academic report PDF
-
+tests/                 Leakage and invariant tests
+report.tex             Report source
+docs/                  Compiled report PDF
 ```
 
 ---
 
-## Methodological Protocols
+## Methodology
 
-* **Chronological Isolation**: For each test month $M$, training uses matches strictly preceding $M - 365\text{ days}$. The validation window covers the 365 days immediately preceding $M$ (used to tune $C$, blend weight $w$, and calibration maps). Month $M$ is evaluated strictly out-of-fold.
-* **Leakage Prevention**: Features for any match are computed using match data concluding strictly prior to that match date. An automated test perturbs past match outcomes and verifies that no subsequent or current features are altered.
-* **Power De-vigging**: Bookmaker margin is removed via the power formulation:
+* **Chronological isolation**: For each test month M, training uses matches before M − 365 days; the validation window is the 365 days before M (tunes C, the blend weight w and the calibrator); month M is evaluated out-of-fold. 2024–25 is the development season and 2025–26 the holdout.
+* **Leakage prevention**: A match's features use only strictly earlier days. A unit test perturbs one match result and verifies that no feature at or before that match changes.
+* **Power de-vigging**: Margin is removed with p_k = (1/o_k)^c such that Σ p_k = 1, with c ≥ 1, which takes proportionally more margin from longshots. Shin's method is a natural alternative not tested here.
+* **Selection rule**: Rule, threshold and price source are chosen on the development season by maximum mean CLV (at least 150 bets) and evaluated once on the holdout.
+* **Efficient-market null**: Holding the placed bets fixed, outcomes are redrawn 20,000 times from de-vigged market probabilities. The p-value is the share of simulations with ROI at least as high as observed.
+* **Pick skill**: CLV = o_taken · p_Pinnacle-close − 1, minus the average CLV of all three outcomes of the same match. This separates choosing the better side from the margin every blind bet pays.
+* **Power**: MDE = (z₀.₉₅ + z₀.₈₀) · σ/√n, and the bets needed for a target edge e is n = ((z₀.₉₅ + z₀.₈₀) · σ / e)².
 
-$$p_k = (1/o_k)^c \quad \text{such that} \quad \sum_{k \in \{H,D,A\}} p_k = 1$$
+---
 
+## Limitations
 
-
-where $c \ge 1$, correcting for longshot over-taxing.
-* **Selection Rule & Holdout Quarantine**: Strategies are chosen on the 2024–25 development season by maximizing mean CLV (subject to $n \ge 150$) and tested exactly once on the 2025–26 holdout season.
-* **Formal Power Derivation**: Smallest detectable edge at $80\%$ power and $\alpha = 0.05$ (one-sided):
-
-$$\text{MDE} = (z_{0.95} + z_{0.80}) \frac{\sigma}{\sqrt{n}}$$
-
-
+* Small holdout bet counts at the 6% threshold (139–226; 77 for the selected strategy) cannot separate a 2–5% edge from luck.
+* Pick skill should be read against a favourite-backing benchmark (about +2 points at average odds).
+* Favourite–longshot slopes at different price sources were not formally compared.
+* Features exclude lineups, injuries and expected goals; rest days ignore European and cup fixtures.
+* Best-odds results assume the best quoted price is obtainable; average odds are a pre-closing snapshot, so CLV contains timing noise.
+* Rules were selected on one season, so the size of the development grid should be kept in mind.
 
 ---
 
 ## Academic Report
 
-The complete academic paper with derivations, methodology, and LaTeX-compiled tables is available at:
-👉 **[`docs/report_randomness.pdf`](https://github.com/meh6di/can-you-beat-randomness/blob/main/docs/report_randomness.pdf)**
+Full derivations, methodology and tables: **[`docs/report_randomness.pdf`](https://github.com/meh6di/can-you-beat-randomness/blob/main/docs/report_randomness.pdf)**
 
 ---
 
@@ -143,6 +162,6 @@ The complete academic paper with derivations, methodology, and LaTeX-compiled ta
 
 Distributed under the MIT License (see `LICENSE`).
 
-**Mohamed El Mehdi El Allaoui** — École Centrale Casablanca
+**Mohamed El Mehdi El Allaoui**, École Centrale Casablanca
 
-GitHub: [@meh6di](https://www.google.com/search?q=https://github.com/meh6di)
+GitHub: [@meh6di](https://github.com/meh6di)
