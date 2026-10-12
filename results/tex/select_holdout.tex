@@ -1,13 +1,27 @@
 \begin{table}[H]\centering\small
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{lllrrrrrrrrrrrrrr}
+\begin{tabular}{lrrr}
 \toprule
-price & model & rule & threshold & dev\_bets & dev\_clv & hold\_bets & hold\_roi & roi\_lo & roi\_hi & null\_mean & p\_vs\_null & hold\_clv & clv\_lo & clv\_hi & hold\_pick\_skill & rank\_corr\_dev\_vs\_hold\_clv \\
+price & Avg & Max & PS \\
 \midrule
-Avg & Logistic regression (scaled, tuned) & edge & 0.060 & 161 & -2.49\% & 77 & 7.49\% & -25.88\% & 43.69\% & -7.50\% & 0.190 & -4.12\% & -5.11\% & -3.09\% & 2.18\% & 0.740 \\
-Max & Logistic regression (scaled, tuned) & edge & 0.060 & 161 & 1.43\% & 77 & 11.53\% & -23.92\% & 49.04\% & -3.76\% & 0.197 & -0.46\% & -1.48\% & 0.58\% & 2.15\% & 0.751 \\
-PS & Logistic regression (scaled, tuned) & edge & 0.060 & 161 & -1.53\% & 77 & 9.83\% & -25.44\% & 45.73\% & -4.63\% & 0.207 & -1.25\% & -2.29\% & -0.21\% & 2.21\% & 0.662 \\
+model & Logistic regression & Logistic regression & Logistic regression \\
+rule & edge & edge & edge \\
+threshold & 0.060 & 0.060 & 0.060 \\
+dev\_bets & 161 & 161 & 161 \\
+dev\_clv & -2.49\% & 1.43\% & -1.53\% \\
+hold\_bets & 77 & 77 & 77 \\
+hold\_roi & 7.49\% & 11.53\% & 9.83\% \\
+roi\_lo & -25.88\% & -23.92\% & -25.44\% \\
+roi\_hi & 43.69\% & 49.04\% & 45.73\% \\
+null\_mean & -7.50\% & -3.76\% & -4.63\% \\
+p\_vs\_null & 0.190 & 0.197 & 0.207 \\
+hold\_clv & -4.12\% & -0.46\% & -1.25\% \\
+clv\_lo & -5.11\% & -1.48\% & -2.29\% \\
+clv\_hi & -3.09\% & 0.58\% & -0.21\% \\
+hold\_pick\_skill & 2.18\% & 2.15\% & 2.21\% \\
+rank\_corr\_dev\_vs\_hold\_clv & 0.740 & 0.751 & 0.662 \\
 \bottomrule
-\end{tabular}}
-\caption{Strategy chosen on dev (CLV), evaluated once on the holdout.}\label{tab:select_holdout}
+\end{tabular}
+}
+\caption{Strategy chosen on dev (CLV), evaluated once on the holdout (898 holdout matches with Pinnacle closing odds).}\label{tab:select_holdout}
 \end{table}

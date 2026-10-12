@@ -4,10 +4,11 @@
 \toprule
 model & bets & sd\_per\_bet & se\_roi & min\_detectable\_roi & bets\_for\_2pct & bets\_for\_3pct & bets\_for\_5pct \\
 \midrule
-Logistic regression (scaled, tuned) & 139 & 1.576 & 13.37\% & 33.24\% & 38405 & 17069 & 6145 \\
+Logistic regression & 139 & 1.576 & 13.37\% & 33.24\% & 38405 & 17069 & 6145 \\
 XGBoost (raw) & 178 & 1.560 & 11.70\% & 29.08\% & 37639 & 16729 & 6023 \\
 XGBoost (calibrated) & 226 & 1.340 & 8.91\% & 22.16\% & 27747 & 12332 & 4440 \\
 \bottomrule
-\end{tabular}}
-\caption{Power analysis: what this sample can and cannot detect.}\label{tab:stats_power}
+\end{tabular}
+}
+\caption{Power analysis (full holdout, 6\% threshold): what this sample can and cannot detect.}\label{tab:stats_power}
 \end{table}

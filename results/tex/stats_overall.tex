@@ -4,15 +4,16 @@
 \toprule
 model & threshold & bets & roi & ci\_lo & ci\_hi & null\_mean & z\_vs\_null & p\_vs\_null & ci\_excludes\_0 \\
 \midrule
-Logistic regression (scaled, tuned) & 0.030 & 860 & -2.02\% & -11.86\% & 8.14\% & -7.31\% & 1.062 & 0.146 & False \\
+Logistic regression & 0.030 & 860 & -2.02\% & -11.86\% & 8.14\% & -7.31\% & 1.062 & 0.146 & False \\
 Market x strength-model blend & 0.030 & 0 & - & - & - & - & - & - & False \\
 XGBoost (raw) & 0.030 & 825 & -1.04\% & -12.98\% & 11.35\% & -9.19\% & 1.385 & 0.084 & False \\
 XGBoost (calibrated) & 0.030 & 832 & -7.12\% & -16.44\% & 2.17\% & -6.98\% & -0.028 & 0.509 & False \\
-Logistic regression (scaled, tuned) & 0.060 & 139 & 0.32\% & -25.27\% & 26.62\% & -7.75\% & 0.628 & 0.261 & False \\
+Logistic regression & 0.060 & 139 & 0.32\% & -25.27\% & 26.62\% & -7.75\% & 0.628 & 0.261 & False \\
 Market x strength-model blend & 0.060 & 0 & - & - & - & - & - & - & False \\
 XGBoost (raw) & 0.060 & 178 & -22.85\% & -45.41\% & 0.82\% & -9.33\% & -1.047 & 0.854 & False \\
 XGBoost (calibrated) & 0.060 & 226 & -10.58\% & -27.18\% & 7.47\% & -6.23\% & -0.481 & 0.679 & False \\
 \bottomrule
-\end{tabular}}
-\caption{ROI with bootstrap CI and efficient-market null (1 bet/match).}\label{tab:stats_overall}
+\end{tabular}
+}
+\caption{ROI with bootstrap CI and efficient-market null (full holdout, 1 bet/match, edge rule).}\label{tab:stats_overall}
 \end{table}

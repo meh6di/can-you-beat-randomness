@@ -4,22 +4,23 @@
 \toprule
 A & B & diff\_units & ci\_lo & ci\_hi & p\_two\_sided \\
 \midrule
-Logistic regression (scaled, tuned) & Market x strength-model blend & 0.440 & -35.075 & 36.891 & 0.987 \\
-Logistic regression (scaled, tuned) & XGBoost (raw) & 41.120 & -11.773 & 92.471 & 0.122 \\
-Logistic regression (scaled, tuned) & XGBoost (calibrated) & 24.340 & -27.731 & 76.602 & 0.354 \\
-Logistic regression (scaled, tuned) & Favorite (all matches) & 48.560 & -42.291 & 137.366 & 0.297 \\
-Logistic regression (scaled, tuned) & Random (expected) & 141.253 & 91.736 & 190.694 & 0.000 \\
+Logistic regression & Market x strength-model blend & 0.440 & -35.075 & 36.891 & 0.987 \\
+Logistic regression & XGBoost (raw) & 41.120 & -11.773 & 92.471 & 0.122 \\
+Logistic regression & XGBoost (calibrated) & 24.340 & -27.731 & 76.602 & 0.354 \\
+Logistic regression & Favorite & 48.560 & -42.291 & 137.366 & 0.297 \\
+Logistic regression & Random (expected) & 141.253 & 91.736 & 190.694 & 0.000 \\
 Market x strength-model blend & XGBoost (raw) & 40.680 & -0.871 & 80.681 & 0.054 \\
 Market x strength-model blend & XGBoost (calibrated) & 23.900 & -16.561 & 62.630 & 0.233 \\
-Market x strength-model blend & Favorite (all matches) & 48.120 & -28.262 & 128.962 & 0.226 \\
+Market x strength-model blend & Favorite & 48.120 & -28.262 & 128.962 & 0.226 \\
 Market x strength-model blend & Random (expected) & 140.813 & 102.953 & 177.334 & 0.000 \\
 XGBoost (raw) & XGBoost (calibrated) & -16.780 & -62.281 & 28.972 & 0.454 \\
-XGBoost (raw) & Favorite (all matches) & 7.440 & -85.451 & 100.244 & 0.861 \\
+XGBoost (raw) & Favorite & 7.440 & -85.451 & 100.244 & 0.861 \\
 XGBoost (raw) & Random (expected) & 100.133 & 49.485 & 150.465 & 0.000 \\
-XGBoost (calibrated) & Favorite (all matches) & 24.220 & -62.061 & 111.326 & 0.566 \\
+XGBoost (calibrated) & Favorite & 24.220 & -62.061 & 111.326 & 0.566 \\
 XGBoost (calibrated) & Random (expected) & 116.913 & 63.585 & 170.408 & 0.000 \\
-Favorite (all matches) & Random (expected) & 92.693 & -12.275 & 199.487 & 0.088 \\
+Favorite & Random (expected) & 92.693 & -12.275 & 199.487 & 0.088 \\
 \bottomrule
-\end{tabular}}
-\caption{Paired bootstrap of total profit (A minus B, units).}\label{tab:stats_paired}
+\end{tabular}
+}
+\caption{Paired bootstrap of total profit, A minus B in units (full holdout, 6\% threshold).}\label{tab:stats_paired}
 \end{table}
