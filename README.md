@@ -14,7 +14,7 @@ An empirical investigation of football betting-market efficiency: walk-forward p
 
 1. **The market is the best forecaster.** De-vigged average odds achieve the best log loss (0.961), Brier score (0.571) and RPS (0.192). Only calibrated XGBoost is *significantly* worse (Δ log loss = +0.010, 95% CI [+0.003, +0.017], p = 0.006); logistic regression and raw XGBoost are directionally worse with CIs that include zero. The optimised market–strength blend weight collapses to w ≈ 0: Elo and form features add no information beyond market prices.
 2. **Failure to reject the efficient-market null.** Every holdout ROI is consistent with 20,000 outcome redraws from de-vigged market probabilities (p-values from 0.08 to 0.85 across model–threshold combinations). The smallest p-value (raw XGBoost, 3% threshold, ROI −1.0%, p = 0.084) is above even the uncorrected 5% level; the Bonferroni threshold for the 8 variants tested would be about 0.006. ROIs must be compared with the null mean (about −6% to −9%), not with zero.
-3. **Small pick skill, but no profit.** The selected logistic strategy (6% edge, 77 holdout bets) shows a statistically significant pick skill of **+2.18%** (95% CI [+1.29%, +3.16%]). Two caveats: (a) simply backing the favourite already earns about +2.0 points at average odds (CLV −4.85% vs −6.88% for a random pick), so most of this skill at average odds is what a favourite lean would give (about +0.65 points at best odds, vs +2.15% for the model); (b) positive pick skill does not make CLV positive. Mean CLV vs Pinnacle's close is −4.12% at average odds (−0.46%, CI [−1.46%, +0.55%] at best odds), and only 32.5% of wagers beat the raw closing odds at average prices. The realised ROI of +7.5% (CI [−25.9%, +43.7%], p = 0.19) is a lucky outcome of 77 bets, not an edge. Raw and calibrated XGBoost show no significant pick skill.
+3. **Small pick skill, but no profit.** The selected logistic strategy (6% edge; 77 bets on the 898 holdout matches that have Pinnacle closing odds, 139 on the full holdout) shows a statistically significant pick skill of **+2.18%** (95% CI [+1.29%, +3.16%]). Two caveats: (a) simply backing the favourite already earns about +2.0 points at average odds (CLV −4.85% vs −6.88% for a random pick), so most of this skill at average odds is what a favourite lean would give (about +0.65 points at best odds, vs +2.15% for the model); (b) positive pick skill does not make CLV positive. Mean CLV vs Pinnacle's close is −4.12% at average odds (−0.46%, CI [−1.46%, +0.55%] at best odds), and only 32.5% of wagers beat the raw closing odds at average prices. The realised ROI of +7.5% (CI [−25.9%, +43.7%], p = 0.19) is a lucky outcome of 77 bets, not an edge: the same rule returns +0.3% over its 139 bets on the full holdout, so the 62 bets without closing odds returned about −8.6%. Raw and calibrated XGBoost show no significant pick skill.
 4. **Structural power deficit.** With 139–226 bets at the 6% threshold and a per-bet standard deviation of about 1.3–1.6 units, the smallest true ROI detectable with 80% power at α = 0.05 (one-sided) is **22%–33%** (about 45% for the 77-bet selected strategy; about 13% for the ~850-bet 3% threshold runs, assuming σ ≈ 1.5). Detecting a 2% edge needs roughly **27,700–38,400 bets**, about 30–45 times the bets placed at the 3% threshold in the holdout.
 5. **Selection on development data does not carry over cleanly.** The strategy chosen on 2024–25 by maximum mean CLV (logistic regression, 6% edge) saw CLV fall from −2.5% to −4.1% at average odds and from +1.4% to −0.5% at best odds, but stay roughly flat at Pinnacle prices (−1.5% to −1.3%). The development-vs-holdout rank correlation across the parameter grid is ρ = 0.74, so the relative ordering of settings is fairly stable and the evidence for a strong winner's curse is limited. What does not carry over is the level of CLV.
 6. **Bankroll risk without edge.** Under the efficient-market null, flat 1-unit staking from a 100-unit bankroll has a median final P&L of −11.3 units and a 73.2% chance of ending negative. Ruin probability is 74.5% for a 10-unit bankroll and 44.8% for 20 units. Quarter-Kelly using model probabilities raises the probability of a >50% drawdown to 14.5% (vs 2.0% for flat staking). A plausible cause is that Kelly stakes scale with estimated edge and the largest estimated edges are mostly noise; this was not tested.
@@ -64,6 +64,8 @@ All sources, including the market, have ECE within or close to the sampling-nois
 
 ## Holdout Betting Results (1 bet per match)
 
+**Two evaluation samples.** CLV, pick skill and strategy selection need Pinnacle closing odds, so they drop every match without them and use 898 holdout matches (`clv_analysis.py`, `strategy_select.py`). ROI vs the null, per-league ROI, paired tests, power and bankroll risk use the full holdout. The same logistic 6% rule therefore has 139 bets here but 77 in the CLV and selection tables; the 77 are a subset of the 139.
+
 | Model | Threshold | Bets | ROI | 95% CI | p vs null |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | Logistic regression | 3% | 860 | −2.02% | [−11.9%, +8.1%] | 0.146 |
@@ -82,7 +84,7 @@ The blend places no bets at either threshold because it stays too close to the m
 - **Observed ROI vs efficient-market null** (`results/market_null.png`): holdout ROIs inside the simulated null distribution.
 - **Realised profit vs cumulative CLV** (`results/clv_curves.png`): realised P&L wanders randomly while cumulative CLV drifts smoothly. CLV's standard error is about 34× smaller than ROI's for the logistic strategy (16–20× for XGBoost).
 - **Favourite–longshot bias** (`results/market_bias.png`): blind ROI by odds bucket. At average odds, favourites (o < 1.5) are near break-even (−0.6%) and the 6–10 bucket loses 17.4%.
-- **Equity vs luck-only band** (`results/`): realised equity against the efficient-market null band, ruin probability by bankroll, and staking comparison.
+- **Equity vs luck-only band** (`results/risk_analysis.png`): realised equity against the efficient-market null band, ruin probability by bankroll, and staking comparison.
 
 ---
 
@@ -143,7 +145,9 @@ docs/                  Compiled report PDF
 
 ## Limitations
 
-* Small holdout bet counts at the 6% threshold (139–226; 77 for the selected strategy) cannot separate a 2–5% edge from luck.
+* Small holdout bet counts at the 6% threshold (139–226 on the full holdout; 77 for the selected strategy on the closing-odds subset) cannot separate a 2–5% edge from luck.
+* Closing odds are missing for part of the holdout, so CLV and strategy selection rest on 898 matches; whether those matches are representative was not checked.
+* In `clv_summary.csv`, the ROI columns of the best-odds rows repeat the average-odds ROI (profit is computed at average odds for both price sets); only CLV and pick skill use best odds.
 * Pick skill should be read against a favourite-backing benchmark (about +2 points at average odds).
 * Favourite–longshot slopes at different price sources were not formally compared.
 * Features exclude lineups, injuries and expected goals; rest days ignore European and cup fixtures.
