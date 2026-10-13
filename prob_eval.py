@@ -7,7 +7,7 @@ Does the model add information beyond the market's own probabilities?
     ECE "noise floor" (what a perfectly calibrated forecaster would score by chance).
 
 Sources: de-vigged market average, Pinnacle (if columns present), climatology,
-logistic regression, raw XGBoost, Platt-calibrated XGBoost.
+logistic regression, raw XGBoost, recalibrated XGBoost (multinomial logistic recalibration).
 Lower is better for every score. Negative delta = better than the market.
 
 Usage:  python prob_eval.py [--split holdout|dev|all]  (default: holdout)
@@ -111,12 +111,18 @@ def main():
         for metric in ("log_loss", "brier", "rps"):
             s = scores[name][metric]
             d = s - scores["market"][metric]
-            se = d.std(ddof=1) / np.sqrt(n)
-            mean_d = d.mean()
+            if np.abs(d).max() < 1e-9:
+                # Identical to the market up to floating-point noise (the market itself, or the blend
+                # when w ~ 0): differences are ~1e-16, so a z-test on them is meaningless. No p-value.
+                mean_d, lo, hi, pval = 0.0, 0.0, 0.0, np.nan
+            else:
+                se = d.std(ddof=1) / np.sqrt(n)
+                mean_d = d.mean()
+                lo, hi = mean_d - 1.96 * se, mean_d + 1.96 * se
+                pval = 2 * (1 - norm.cdf(abs(mean_d / se))) if se > 0 else np.nan
             rows.append(dict(
                 source=LABELS[name], metric=metric, mean=s.mean(),
-                delta_vs_market=mean_d, ci_lo=mean_d - 1.96 * se, ci_hi=mean_d + 1.96 * se,
-                p_value=(np.nan if name == "market" else 2 * (1 - norm.cdf(abs(mean_d / se)))) if se > 0 else np.nan,
+                delta_vs_market=mean_d, ci_lo=lo, ci_hi=hi, p_value=pval,
             ))
     sc = pd.DataFrame(rows)
     sc.to_csv(f"{RESULTS_DIR}/prob_scores.csv", index=False)

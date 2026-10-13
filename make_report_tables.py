@@ -35,12 +35,12 @@ TABLES = {
         caption=f"Power analysis ({FULL}, 6% threshold): what this sample can and cannot detect.",
         pct=["se_roi", "min_detectable_roi"]),
     "prob_scores": dict(
-        caption="Proper scoring rules versus the market (lower is better).", pct=[]),
+        caption=f"Proper scoring rules versus the market (lower is better; {CLOSE}, paired z-test).", pct=[]),
     "calibration": dict(
-        caption="Calibration error (ECE) against its sampling-noise floor.", pct=[]),
+        caption=f"Calibration error (ECE) against its sampling-noise floor ({CLOSE}).", pct=[]),
     "clv_summary": dict(
         caption=(f"Closing line value against Pinnacle's closing price ({CLOSE}; 6% edge rule). "
-                 "ROI is computed at average odds, so it is blank in the best-odds rows."),
+                 "ROI re-prices the same bets at the odds shown (best-odds rows: best available price)."),
         pct=["clv", "clv_lo", "clv_hi", "pct_clv_pos", "pct_beat_raw_close", "roi", "se_clv", "se_roi",
              "pick_skill", "pick_skill_lo", "pick_skill_hi"],
         tex_cols=["strategy", "odds_used", "bets", "clv", "clv_lo", "clv_hi", "pct_beat_raw_close", "roi",
@@ -157,12 +157,15 @@ def to_markdown(df, pct_cols):
 
 
 def clean(name, df):
-    """clv_analysis.py prices profit at average odds even for the best-odds rows; blank those ROI cells."""
-    if name == "clv_summary" and "odds_used" in df:
-        best = df["odds_used"].astype(str).str.startswith("Best")
-        for c in ("roi", "se_roi", "se_ratio_roi_over_clv"):
-            if c in df:
-                df.loc[best, c] = float("nan")
+    """Old clv_analysis.py priced profit at average odds even for the best-odds rows. If a best-odds ROI
+    repeats the average-odds ROI of the same strategy, blank it (a re-run of clv_analysis.py fixes it)."""
+    if name == "clv_summary" and {"odds_used", "strategy", "roi"} <= set(df.columns):
+        avg = df[df["odds_used"].astype(str).str.startswith("Average")].set_index("strategy")["roi"]
+        for i, r in df[df["odds_used"].astype(str).str.startswith("Best")].iterrows():
+            if r["strategy"] in avg.index and pd.notna(r["roi"]) and abs(r["roi"] - avg[r["strategy"]]) < 1e-12:
+                for c in ("roi", "se_roi", "se_ratio_roi_over_clv"):
+                    if c in df:
+                        df.loc[i, c] = float("nan")
     return df
 
 

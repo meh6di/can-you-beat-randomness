@@ -11,7 +11,8 @@ Reported per strategy:
   * "pick skill": CLV of the bet minus the average CLV of all 3 outcomes of that match.
     Soft-book odds carry a margin, so every blind bet has negative CLV; pick skill
     isolates whether the model chose the better side of the match.
-  * SE of mean CLV vs SE of mean ROI (the variance reduction)
+  * ROI of the same bets at the odds actually taken (average, or best available odds), and the
+    SE of mean CLV vs SE of mean ROI (the variance reduction)
 Baselines: favorite agent and uniformly random pick over all matches.
 
 Requires closing-odds columns (PSCH/PSCD/PSCA, optionally MaxH/D/A). Add them to
@@ -103,8 +104,11 @@ def main():
             clv = clv_all[idx, pk]
             skill = clv - clv_all[idx].mean(axis=1)      # vs random side of the same match
             beat = taken[idx, pk] > close_raw[idx, pk]
+            # profit at the odds actually taken for this price set (pick_bets prices at Avg only,
+            # which made the best-odds rows repeat the average-odds ROI)
+            profit = np.where(bets["won"].to_numpy(), taken[idx, pk] - 1.0, -1.0)
             rows.append(row_for(f"{LABELS[m]} ({THRESHOLD:.0%} edge)", plabel, clv,
-                                profit=bets["profit"].to_numpy(), skill=skill, beat_raw=beat))
+                                profit=profit, skill=skill, beat_raw=beat))
             if prefix == "Avg":
                 curves[m] = (bets["Date"].to_numpy(), bets["profit"].cumsum().to_numpy(),
                              pd.Series(clv).cumsum().to_numpy())
@@ -128,7 +132,7 @@ def main():
           "pick_skill > 0 (CI excluding 0) means the model chose sides that the sharp closing\n"
           "line later agreed with. se_ratio = how many times noisier ROI is than CLV.\n"
           "Caveat: Avg odds are a pre-closing snapshot; timing differences vs Pinnacle's close\n"
-          "add noise, and de-vigging is proportional (Shin/power methods are an easy upgrade).")
+          "add noise, and de-vigging uses config.DEVIG_METHOD ('power'; Shin is an easy upgrade).")
 
     # ------------------------------------------------------------------- figure
     plot_models = [m for m in MODELS if m in curves]

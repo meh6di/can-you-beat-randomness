@@ -29,7 +29,7 @@ An empirical investigation of football betting-market efficiency: walk-forward p
 3. **Walk-forward models**: Refit every calendar month of 2024–25 and 2025–26:
    - L2-regularised logistic regression (standardised features, league dummies, validation-tuned C).
    - Market × strength log-linear blend (p ∝ p_mkt^(1−w) · p_strength^w, w tuned on validation).
-   - XGBoost, raw and recalibrated with multinomial vector scaling on a validation window.
+   - XGBoost, raw and recalibrated on a validation window by a multinomial logistic regression on the log-probabilities (a full 3×3 map with L2 penalty).
 4. **Betting rules**: One unit per match on the best outcome if its edge (p̂ − p_mkt) or expected value (p̂·o − 1) clears a threshold (3% or 6% in the reported runs), at average, best-available or Pinnacle prices.
 5. **Statistical inference**
    - Bootstrap ROI intervals and an efficient-market null (20,000 simulations per strategy) in `stats_tests.py`.
@@ -45,7 +45,7 @@ All numbers live in `results/` (CSV + PNG). `results/summary.md` and `results/te
 
 ## Probabilistic Quality (lower is better)
 
-Paired differences are per-match versus the market (average odds, de-vigged).
+All sources are scored on the same matches, which means the 898 holdout matches that have Pinnacle closing odds. Paired differences are per-match versus the market (average odds, de-vigged), with normal-approximation 95% CIs and two-sided z-test p-values. The blend equals the market to machine precision (w ≈ 0), so no p-value is reported for it.
 
 | Model / Benchmark | Log Loss | Brier | RPS | Δ Log Loss vs Market (95% CI) | ECE (noise floor ≈ 0.020) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -64,7 +64,7 @@ All sources, including the market, have ECE within or close to the sampling-nois
 
 ## Holdout Betting Results (1 bet per match)
 
-**Two evaluation samples.** CLV, pick skill and strategy selection need Pinnacle closing odds, so they drop every match without them and use 898 holdout matches (`clv_analysis.py`, `strategy_select.py`). ROI vs the null, per-league ROI, paired tests, power and bankroll risk use the full holdout. The same logistic 6% rule therefore has 139 bets here but 77 in the CLV and selection tables; the 77 are a subset of the 139.
+**Two evaluation samples.** CLV, pick skill and strategy selection need Pinnacle closing odds, so they drop every match without them and use 898 of the 1,752 holdout matches (854 dropped) (`clv_analysis.py`, `strategy_select.py`); probabilistic scoring and calibration (`prob_eval.py`) compare all sources on the same matches, so they use this subset too. ROI vs the null, per-league ROI, paired tests, power and bankroll risk use the full holdout. The same logistic 6% rule therefore has 139 bets here but 77 in the CLV and selection tables; the 77 are a subset of the 139.
 
 | Model | Threshold | Bets | ROI | 95% CI | p vs null |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -113,7 +113,7 @@ config.py              Paths, season splits, league parameters, hyperparameters
 fetch_data.py          Download with retry logic from football-data.co.uk
 clean_data.py          Validation, deduplication, odds sanity checks
 engineer_features.py   Elo, EWMA form, power-method de-vigging
-models.py              Logistic regression, vector-scaled XGBoost, blend
+models.py              Logistic regression, recalibrated XGBoost, blend
 walkforward.py         Monthly walk-forward training and inference
 common.py              De-vigging, bet selection, bootstrap, CLV routines
 stats_tests.py         Bootstrap ROI, efficient-market null, power calculations
@@ -135,7 +135,7 @@ docs/                  Compiled report PDF
 
 * **Chronological isolation**: For each test month M, training uses matches before M − 365 days; the validation window is the 365 days before M (tunes C, the blend weight w and the calibrator); month M is evaluated out-of-fold. 2024–25 is the development season and 2025–26 the holdout.
 * **Leakage prevention**: A match's features use only strictly earlier days. A unit test perturbs one match result and verifies that no feature at or before that match changes.
-* **Power de-vigging**: Margin is removed with p_k = (1/o_k)^c such that Σ p_k = 1, with c ≥ 1, which takes proportionally more margin from longshots. Shin's method is a natural alternative not tested here.
+* **Power de-vigging**: Margin is removed with p_k = (1/o_k)^c such that Σ p_k = 1, with c ≥ 1, which takes proportionally more margin from longshots. The same method is used for features, the market benchmark and Pinnacle's close. Shin's method is a natural alternative not tested here.
 * **Selection rule**: Rule, threshold and price source are chosen on the development season by maximum mean CLV (at least 150 bets) and evaluated once on the holdout.
 * **Efficient-market null**: Holding the placed bets fixed, outcomes are redrawn 20,000 times from de-vigged market probabilities. The p-value is the share of simulations with ROI at least as high as observed.
 * **Pick skill**: CLV = o_taken · p_Pinnacle-close − 1, minus the average CLV of all three outcomes of the same match. This separates choosing the better side from the margin every blind bet pays.
@@ -146,8 +146,7 @@ docs/                  Compiled report PDF
 ## Limitations
 
 * Small holdout bet counts at the 6% threshold (139–226 on the full holdout; 77 for the selected strategy on the closing-odds subset) cannot separate a 2–5% edge from luck.
-* Closing odds are missing for part of the holdout, so CLV and strategy selection rest on 898 matches; whether those matches are representative was not checked.
-* In `clv_summary.csv`, the ROI columns of the best-odds rows repeat the average-odds ROI (profit is computed at average odds for both price sets); only CLV and pick skill use best odds.
+* Closing odds are missing for part of the holdout, so CLV, strategy selection and the probabilistic scoring rest on 898 of 1,752 holdout matches; whether those matches are representative was not checked.
 * Pick skill should be read against a favourite-backing benchmark (about +2 points at average odds).
 * Favourite–longshot slopes at different price sources were not formally compared.
 * Features exclude lineups, injuries and expected goals; rest days ignore European and cup fixtures.

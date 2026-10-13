@@ -61,7 +61,7 @@
 | XGBoost (raw) | 178 | 1.560 | 11.70% | 29.08% | 37639 | 16729 | 6023 |
 | XGBoost (calibrated) | 226 | 1.340 | 8.91% | 22.16% | 27747 | 12332 | 4440 |
 
-## Proper scoring rules versus the market (lower is better).
+## Proper scoring rules versus the market (lower is better; 898 holdout matches with Pinnacle closing odds, paired z-test).
 
 | source | metric | mean | delta_vs_market | ci_lo | ci_hi | p_value |
 |---|---|---|---|---|---|---|
@@ -77,9 +77,9 @@
 | Logistic regression (scaled, tuned) | log_loss | 0.964 | 0.004 | -0.003 | 0.010 | 0.272 |
 | Logistic regression (scaled, tuned) | brier | 0.573 | 0.002 | -0.002 | 0.006 | 0.339 |
 | Logistic regression (scaled, tuned) | rps | 0.193 | 0.001 | -0.000 | 0.002 | 0.131 |
-| Market x strength-model blend | log_loss | 0.961 | 0.000 | 0.000 | 0.000 | 0.000 |
-| Market x strength-model blend | brier | 0.571 | 0.000 | -0.000 | 0.000 | 0.254 |
-| Market x strength-model blend | rps | 0.192 | 0.000 | -0.000 | 0.000 | 0.625 |
+| Market x strength-model blend | log_loss | 0.961 | 0.000 | 0.000 | 0.000 | - |
+| Market x strength-model blend | brier | 0.571 | 0.000 | 0.000 | 0.000 | - |
+| Market x strength-model blend | rps | 0.192 | 0.000 | 0.000 | 0.000 | - |
 | XGBoost (raw) | log_loss | 0.966 | 0.005 | -0.001 | 0.012 | 0.104 |
 | XGBoost (raw) | brier | 0.574 | 0.002 | -0.002 | 0.007 | 0.237 |
 | XGBoost (raw) | rps | 0.194 | 0.002 | 0.000 | 0.003 | 0.044 |
@@ -90,7 +90,7 @@
 | Climatology (class freq.) | brier | 0.647 | 0.075 | 0.058 | 0.093 | 0.000 |
 | Climatology (class freq.) | rps | 0.228 | 0.036 | 0.028 | 0.044 | 0.000 |
 
-## Calibration error (ECE) against its sampling-noise floor.
+## Calibration error (ECE) against its sampling-noise floor (898 holdout matches with Pinnacle closing odds).
 
 | source | ece | ece_noise_floor | p_vs_perfect | ece_H | ece_D | ece_A |
 |---|---|---|---|---|---|---|
@@ -103,7 +103,7 @@
 | XGBoost (calibrated) | 0.023 | 0.020 | 0.336 | 0.034 | 0.036 | 0.042 |
 | Climatology (class freq.) | 0.023 | 0.022 | 0.445 | 0.065 | 0.059 | 0.038 |
 
-## Closing line value against Pinnacle's closing price (898 holdout matches with Pinnacle closing odds; 6% edge rule). ROI is computed at average odds, so it is blank in the best-odds rows.
+## Closing line value against Pinnacle's closing price (898 holdout matches with Pinnacle closing odds; 6% edge rule). ROI re-prices the same bets at the odds shown (best-odds rows: best available price).
 
 | strategy | odds_used | bets | clv | clv_lo | clv_hi | pct_clv_pos | se_clv | pct_beat_raw_close | roi | se_roi | se_ratio_roi_over_clv | pick_skill | pick_skill_lo | pick_skill_hi | pick_skill_p |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -114,9 +114,9 @@
 | XGBoost (calibrated) (6% edge) | Average market odds (as in the backtests) | 128 | -5.52% | -6.86% | -4.21% | 20.31% | 0.69% | 32.03% | -20.12% | 10.84% | 15.775 | 1.28% | -0.09% | 2.67% | 0.065 |
 | Favorite (all matches) | Best available odds (line-shopping, optimistic) | 898 | -2.21% | -2.70% | -1.63% | 30.85% | 0.27% | 45.10% | - | - | - | - | - | - | - |
 | Random pick (expected, all matches) | Best available odds (line-shopping, optimistic) | 898 | -2.86% | -3.12% | -2.58% | 11.92% | 0.14% | - | - | - | - | - | - | - | - |
-| Logistic regression (scaled, tuned) (6% edge) | Best available odds (line-shopping, optimistic) | 77 | -0.46% | -1.46% | 0.55% | 41.56% | 0.53% | 79.22% | - | - | - | 2.15% | 1.23% | 3.12% | 0.000 |
-| XGBoost (raw) (6% edge) | Best available odds (line-shopping, optimistic) | 65 | -3.64% | -5.50% | -1.86% | 24.62% | 0.94% | 63.08% | - | - | - | -0.56% | -1.89% | 0.82% | 0.427 |
-| XGBoost (calibrated) (6% edge) | Best available odds (line-shopping, optimistic) | 128 | -2.21% | -3.47% | -0.94% | 34.38% | 0.66% | 53.12% | - | - | - | 1.01% | -0.38% | 2.41% | 0.153 |
+| Logistic regression (scaled, tuned) (6% edge) | Best available odds (line-shopping, optimistic) | 77 | -0.46% | -1.46% | 0.55% | 41.56% | 0.53% | 79.22% | 11.53% | 18.68% | 35.440 | 2.15% | 1.23% | 3.12% | 0.000 |
+| XGBoost (raw) (6% edge) | Best available odds (line-shopping, optimistic) | 65 | -3.64% | -5.50% | -1.86% | 24.62% | 0.94% | 63.08% | -5.09% | 19.47% | 20.673 | -0.56% | -1.89% | 0.82% | 0.427 |
+| XGBoost (calibrated) (6% edge) | Best available odds (line-shopping, optimistic) | 128 | -2.21% | -3.47% | -0.94% | 34.38% | 0.66% | 53.12% | -17.68% | 11.24% | 17.132 | 1.01% | -0.38% | 2.41% | 0.153 |
 
 ## Strategy chosen on dev (CLV), evaluated once on the holdout (898 holdout matches with Pinnacle closing odds).
 

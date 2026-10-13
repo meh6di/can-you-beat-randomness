@@ -16,9 +16,9 @@ Pinnacle close (de-vigged) & rps & 0.193 & 0.001 & -0.000 & 0.002 & 0.137 \\
 Logistic regression & log\_loss & 0.964 & 0.004 & -0.003 & 0.010 & 0.272 \\
 Logistic regression & brier & 0.573 & 0.002 & -0.002 & 0.006 & 0.339 \\
 Logistic regression & rps & 0.193 & 0.001 & -0.000 & 0.002 & 0.131 \\
-Market x strength-model blend & log\_loss & 0.961 & 0.000 & 0.000 & 0.000 & 0.000 \\
-Market x strength-model blend & brier & 0.571 & 0.000 & -0.000 & 0.000 & 0.254 \\
-Market x strength-model blend & rps & 0.192 & 0.000 & -0.000 & 0.000 & 0.625 \\
+Market x strength-model blend & log\_loss & 0.961 & 0.000 & 0.000 & 0.000 & - \\
+Market x strength-model blend & brier & 0.571 & 0.000 & 0.000 & 0.000 & - \\
+Market x strength-model blend & rps & 0.192 & 0.000 & 0.000 & 0.000 & - \\
 XGBoost (raw) & log\_loss & 0.966 & 0.005 & -0.001 & 0.012 & 0.104 \\
 XGBoost (raw) & brier & 0.574 & 0.002 & -0.002 & 0.007 & 0.237 \\
 XGBoost (raw) & rps & 0.194 & 0.002 & 0.000 & 0.003 & 0.044 \\
@@ -31,5 +31,5 @@ Climatology (class freq.) & rps & 0.228 & 0.036 & 0.028 & 0.044 & 0.000 \\
 \bottomrule
 \end{tabular}
 }
-\caption{Proper scoring rules versus the market (lower is better).}\label{tab:prob_scores}
+\caption{Proper scoring rules versus the market (lower is better; 898 holdout matches with Pinnacle closing odds, paired z-test).}\label{tab:prob_scores}
 \end{table}

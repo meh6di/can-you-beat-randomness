@@ -8,8 +8,9 @@ Every model outputs an (n, 3) probability array in H, D, A order.
            from a strength-only model (no market input). w in [0,1] is fitted on
            validation: w ~ 0 means the model adds nothing beyond the market.
   xgb      gradient-boosted trees (raw)
-  xgb_cal  the same, recalibrated on the (later) validation window with a multinomial
-           'vector scaling' map (time-ordered, unlike 3-fold CV on the training set)
+  xgb_cal  the same, recalibrated on the (later) validation window by a multinomial
+           logistic regression on the log-probabilities (a full 3x3 map, L2 C=1; closer to
+           matrix scaling than to vector scaling). Time-ordered, unlike 3-fold CV on the train set
   clim     class frequencies (reference only)
 """
 import numpy as np
